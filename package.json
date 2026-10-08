@@ -1,6 +1,6 @@
 {
   "name": "ai-engineering-team",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An AI engineering team for your repo: PM → Developer → QA → Bug Fixer → Security → Code Review → Release, orchestrated on Claude Code.",
   "homepage": "https://github.com/Mayurrr29/ai-engineering-team#readme",
   "repository": {
