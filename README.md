@@ -14,33 +14,52 @@
 npm install -g ai-engineering-team
 cd your-project
 ai-team init
-ai-team build "Allow instructors to create discount coupons for their courses"
+ai-team build "Add a health check endpoint"
 ```
+
+Real output from a run on a small Node API (agent activity lines trimmed):
 
 ```
 [1] Product Manager
-  ✓ Requirements: 9 functional, 8 acceptance criteria
-  ✓ 17 edge cases identified
-[2] Developer
-  ✓ 7 file(s) changed, 3 test(s) added
-[3] Checks (lint / typecheck / tests / build)
-  ✓ lint (4.1s)  ✓ test (8.3s)  ✓ build (6.0s)
-[4] QA Engineer
-  ✓ 43 test scenarios
-  ✗ 2 issue(s): BUG-001, BUG-002
-[5] Bug Fixer
-  ✓ BUG-001 fixed  ✓ BUG-002 fixed
-  …
+  ✓ Requirements: 7 functional, 7 acceptance criteria
+  ✓ 8 edge cases identified
+  ! 4 open question(s)
+[2] Clarifications
+  ✓ Requirements finalized
+[3] Developer
+  ✓ 2 file(s) changed, 10 test(s) added
+[4] Checks (lint / typecheck / tests / build)
+  ✓ test (2.0s)
+[5] QA Engineer
+  ✓ 17 test scenarios
+  ✗ 1 issue(s): BUG-001        ← flaky latency test, reproduced in 3 of 23 runs
+  Round 1/5 → Bug Fixer
+[6] Bug Fixer
+  ✓ BUG-001 fixed
+[7] Checks (lint / typecheck / tests / build)
+  ✓ test (1.5s)
+[8] QA Engineer
+  ✓ 18 test scenarios
+  ✓ QA PASSED
+[9] Security Reviewer
+  ✓ Security review APPROVED (1 low-severity note(s))
+[10] Code Reviewer
+  ✓ Code review APPROVED (4 low-severity note(s))
+[11] Release Manager
+  ✓ 4 lesson(s) added to engineering memory
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
              RELEASE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Requirements:   PASS — 8 acceptance criteria, 17 edge cases
-Implementation: PASS — 3 code revision(s)
-Checks:         PASS — lint, test, build
-QA:             PASS — 43 scenarios
-Security:       PASS
-Code Review:    PASS
-Iterations:     PASS — 2/5
+
+Requirements:    PASS — 7 acceptance criteria, 8 edge cases
+Implementation:  PASS — 2 code revision(s)
+Checks:          PASS — test
+QA:              PASS — 18 scenarios
+Security:        PASS — 1 low-severity note(s)
+Code Review:     PASS — 4 low-severity note(s)
+Iterations:      PASS — 1/5
+Cost:            $1.81
 
 STATUS: APPROVED ✅
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
