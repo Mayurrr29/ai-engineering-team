@@ -1,0 +1,29 @@
+{
+  "scenario": "01-profile-update",
+  "label": "solo-claude-code",
+  "task": "Let users update their profile: add `PATCH /users/:id` that accepts `name` and `email` in the JSON body and returns the updated user as `{ data: user }`. Users can update their own profile; admins can update anyone's.",
+  "at": "2026-10-08T19:18:25.779Z",
+  "exitCodes": {},
+  "status": "done",
+  "costUsd": 0.29,
+  "onboardingCostUsd": 0,
+  "iterations": null,
+  "lineup": "solo agent",
+  "wallMinutes": 0.9,
+  "hidden": {
+    "passed": 14,
+    "total": 15,
+    "failures": [
+      "a crafted email cannot stall the server (ReDoS)"
+    ]
+  },
+  "visible": {
+    "passed": 23,
+    "total": 23,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "test/users.test.js"
+  ]
+}

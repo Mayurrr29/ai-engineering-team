@@ -1,158 +1,145 @@
 # ai-engineering-team
 
-**An AI engineering team for your repository.** Give it one feature request; it takes the feature from requirements to reviewed, tested code — the way a real engineering org would:
-
-```
- PM → Developer → Checks → QA ──bugs──► Bug Fixer ──┐
-                             ▲                      │
-                             └──────────────────────┘
-                     QA pass → Security → Code Review ──reject──► Developer → Checks → QA → …
-                                                   approve → Release gate → APPROVED ✅ / REJECTED ❌
-```
+**An AI engineering team for your repository, led by JARVIS.** Give it a request; JARVIS sizes the work, picks the right people, and the team takes it from idea to tested, reviewed code — with a visual mission report at the end.
 
 ```bash
 npm install -g ai-engineering-team
 cd your-project
-ai-team init
-ai-team build "Add a health check endpoint"
+ai-team init                     # JARVIS studies your codebase and writes the team's rules
+ai-team build "Allow instructors to create discount coupons for their courses"
 ```
 
-Real output from a run on a small Node API (agent activity lines trimmed):
+## Meet the team
+
+| | Member | Role | From | What they're best at |
+|---|---|---|---|---|
+| 🧠 | **JARVIS** | Team Lead | Iron Man | Sizes every mission, staffs the team, writes briefs, settles disputes, reports to you |
+| 🔭 | **VISION** | Product Manager | Avengers | Testable requirements, permission matrices, the edge cases nobody thought of |
+| 📐 | **DATA** | Architect | Star Trek | Designs that fit your codebase: data model, API contracts, file plan, decision records |
+| 🦾 | **FRIDAY** | Developer | Iron Man | Builds it in your codebase's own style, with tests |
+| 🔬 | **EVE** | QA Engineer | WALL·E | Tries to break it — with real requests, concurrency tests and evidence |
+| 🩺 | **BAYMAX** | Bug Fixer | Big Hero 6 | On call: root causes, minimal fixes, regression tests |
+| 🔐 | **EDITH** | Security Reviewer | Spider-Man: Far From Home | Thinks like an attacker: OWASP Top 10:2025, API Top 10, STRIDE |
+| 🤖 | **TARS** | Code Reviewer | Interstellar | *Honesty setting: 100%.* Would this PR pass a production review? |
+| 🔴 | **HAL 9000** | Release Gate | 2001: A Space Odyssey | Not an AI: plain code you can't talk your way past |
+
+Rename anyone: `"team": { "names": { "developer": "Chitti" } }` in `.ai-team/config.json`.
+
+## JARVIS keeps small tasks small
+
+Multi-agent work costs many times more than a single agent, so JARVIS sizes every mission first and staffs only what it needs:
+
+| Size | Example | Team |
+|---|---|---|
+| XS | change an error message | FRIDAY alone (checks still run) |
+| S | small behavior change | FRIDAY + light QA/review |
+| M | new endpoint with permissions | + VISION, EVE, TARS (EDITH if there's risk) |
+| L | coupons, a new data model | + DATA, full depth on the risky parts |
+| XL | payments, auth flows, migrations | everyone, full depth |
+
+He also sets each member's **effort** (how hard they think) per mission, and you can cap spending: `ai-team build "…" --budget 3` pauses the mission (resumable) instead of overspending.
+
+**Guardrails JARVIS can't override.** After every code change, plain code measures the real diff. If it's bigger than planned, touches security-sensitive code (auth, payments, uploads, secrets) or changes dependencies, the reviewers join automatically. Cutting cost never skips a check the change actually needs.
+
+## The team writes its own rules
+
+- **Day one (`ai-team init`)** — JARVIS studies your repository and writes `.ai-team/project.md` (stack, architecture diagram, conventions with file evidence, how to run and test), **project-specific rules** derived from your code, and notes for each teammate.
+- **Stack packs** — expert checklists that switch on automatically: Express, MongoDB, React, Next.js, NestJS, SQL/ORMs, Python web.
+- **After every mission** — JARVIS adds, updates or retires *learned rules* in `.ai-team/rules.md` based on what the mission taught the team. You can edit everything.
+
+## What you see
+
+**Live Mission Control** in your terminal — who's working, on what, and the cost so far:
 
 ```
-[1] Product Manager
-  ✓ Requirements: 7 functional, 7 acceptance criteria
-  ✓ 8 edge cases identified
-  ! 4 open question(s)
-[2] Clarifications
-  ✓ Requirements finalized
-[3] Developer
-  ✓ 2 file(s) changed, 10 test(s) added
-[4] Checks (lint / typecheck / tests / build)
-  ✓ test (2.0s)
-[5] QA Engineer
-  ✓ 17 test scenarios
-  ✗ 1 issue(s): BUG-001        ← flaky latency test, reproduced in 3 of 23 runs
-  Round 1/5 → Bug Fixer
-[6] Bug Fixer
-  ✓ BUG-001 fixed
-[7] Checks (lint / typecheck / tests / build)
-  ✓ test (1.5s)
-[8] QA Engineer
-  ✓ 18 test scenarios
-  ✓ QA PASSED
-[9] Security Reviewer
-  ✓ Security review APPROVED (1 low-severity note(s))
-[10] Code Reviewer
-  ✓ Code review APPROVED (4 low-severity note(s))
-[11] Release Manager
-  ✓ 4 lesson(s) added to engineering memory
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-             RELEASE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Requirements:    PASS — 7 acceptance criteria, 8 edge cases
-Implementation:  PASS — 2 code revision(s)
-Checks:          PASS — test
-QA:              PASS — 18 scenarios
-Security:        PASS — 1 low-severity note(s)
-Code Review:     PASS — 4 low-severity note(s)
-Iterations:      PASS — 1/5
-Cost:            $1.81
-
-STATUS: APPROVED ✅
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ AI ENGINEERING TEAM ▸ Course discount coupons                  04:12 · $1.84 · round 1/5
+ ──────────────────────────────────────────────────────────────────────────────────────
+  🧠 JARVIS    Team Lead          ✓ L · risk high (payments, concurrency) · team of 6
+  🔭 VISION    Product Manager    ✓ 9 criteria · 12 edge cases
+  📐 DATA      Architect          ✓ 3 decisions · 5 files planned
+  🦾 FRIDAY    Developer          ✓ 5 file(s) · 14 test(s)
+  🔬 EVE       QA Engineer        ⠹ testing (round 1) · 01:12
+                                  ↳ Bash node .ai-team/runs/…/qa-lab-1/race.mjs
+  🩺 BAYMAX    Bug Fixer          · joins only if something breaks
+  🔐 EDITH     Security Reviewer  ○ full depth
+  🤖 TARS      Code Reviewer      ○ full depth
+  🔴 HAL 9000  Release Gate       · waiting
 ```
 
-## Why it works better than "Claude, build this feature"
+**The Mission Report** — one HTML page that opens when the mission ends (`ai-team report` any time). It shows:
 
-- **Separate roles with separate mindsets.** The PM finds ambiguity; the developer builds exactly what was specified; QA assumes bugs exist and tries to prove it; the security reviewer thinks like an attacker; the code reviewer asks *"would I approve this PR?"*
-- **Agents don't trust each other.** QA verifies the developer's claims by running things. Reviewers read the real diff, not summaries.
-- **Least privilege.** PM, Security and Code Review are read-only. QA can run commands but not edit files. Only the Developer and Bug Fixer can change code.
-- **Typed contracts, not vibes.** Every agent must return JSON matching a schema (requirements, bug reports, findings with severities). The orchestrator — not the model — decides what blocks.
-- **Deterministic gates.** Lint/typecheck/tests/build are run by the orchestrator itself; an agent can't claim they pass. The release gate is plain code: every verdict must be a pass **and** must have been made against the *current* code version, so a stale approval can never ship a later change.
-- **Bounded loops.** Fix/rework rounds are capped (`maxIterations`); if the team can't converge, the feature is rejected with reasons.
-- **Resumable.** State is saved after every step. Crash, Ctrl+C, network error → `ai-team resume`.
-- **Engineering memory.** Reviewers record durable project lessons into `.ai-team/memory/lessons.md`; every agent reads them on the next feature.
+- the verdict and JARVIS's debrief
+- the release gate and the team: who JARVIS picked, who wasn't needed, who a guardrail added
+- a timeline of who worked when
+- **requirements traceability**: every acceptance criterion → code → test → QA evidence
+- QA results by category and **bug journeys** (found → fixed → verified)
+- security and review findings with OWASP/CWE tags, plus the threat model
+- what changed, and where the time and money went
+- rulebook updates, and a **war room** chat of every handoff
 
-## Requirements
+It works in light and dark mode. Every mission also leaves Markdown artifacts in `.ai-team/runs/<mission>/` (plan, spec, design with Mermaid diagrams, QA reports, fixes, reviews, release, debrief) and resumable state.
 
-- Node.js 20+
-- Access to Claude: either you're logged in to **Claude Code** on this machine (run `claude` once), or `ANTHROPIC_API_KEY` is set. The Claude Code runtime is bundled via the Claude Agent SDK — no separate install needed.
+## Why you can trust the result
 
-Check your setup with `ai-team doctor`.
+- **Typed contracts.** Every member returns JSON that must match a schema; the orchestrator — not the model — decides what blocks.
+- **Report everything, filter in code.** Reviewers report every issue with an honest severity; HAL blocks on CRITICAL/HIGH/MEDIUM. (Asking a model to "only report important issues" makes it report less.)
+- **Checks run by the orchestrator**: lint, typecheck, tests and build, both *before* the mission (so failures that already existed aren't blamed on the team) and after every change. Agents can't fake them.
+- **Fresh verdicts only.** Every verdict is tied to the code revision it judged; a later change invalidates it.
+- **Least privilege, enforced by code.** Read-only members can't edit; EVE writes only in her scratch lab; nobody touches `.ai-team/` or `.git/`.
+- **Bounded loops and a real lead.** Fix rounds are capped. When a bug keeps coming back or a fixer disputes it, JARVIS rules: fix it differently, waive it (only MEDIUM/LOW), or escalate to you.
+- **Resumable.** Crash, Ctrl+C or budget pause → `ai-team resume`.
+
+## Proving Ground
+
+We measure, not guess. `bench/` contains a realistic Express + MongoDB-style API and four tasks with **hidden tests** the team never sees (IDOR, mass assignment, NoSQL injection, ReDoS, race conditions on coupon limits, data leaks…). Results, including a plain single-agent Claude Code baseline, are in [bench/RESULTS.md](bench/RESULTS.md); the research behind every design decision is in [docs/research.md](docs/research.md).
+
+```bash
+node bench/run.mjs --reference                                  # prove the hidden tests are fair
+node bench/run.mjs --cli dist/cli.js --label mine --parallel 4  # score a version
+node bench/run.mjs --solo --label solo                          # baseline: one plain Claude Code agent
+node bench/compare.mjs
+```
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `ai-team init` | Creates `.ai-team/` with config, rules, agent prompts and memory. Auto-detects `lint`/`typecheck`/`test`/`build` scripts. Never overwrites (use `--force`). |
-| `ai-team build "<feature>"` | Runs the full workflow. |
-| `ai-team build "<feature>" --quick` | Developer → QA → Code Review (no PM spec, no security review). For small changes. |
-| `ai-team resume [run-id]` | Continues a failed/interrupted run from its last unfinished step. |
-| `ai-team status [run-id]` | Shows the status board of a run. |
-| `ai-team runs` | Lists all runs. |
-| `ai-team doctor` | Checks Node, config, checks and Claude connectivity. |
+| `ai-team init` | Scaffold `.ai-team/` and let JARVIS onboard (`--skip-onboarding` to skip) |
+| `ai-team onboard` | Re-study the codebase; refresh the project profile, rules and notes |
+| `ai-team build "<request>"` | Run a mission. Options: `--budget <usd>`, `--quick`, `--full`, `--yes`, `--git`, `--max-iterations <n>`, `--model <id>`, `--quiet`, `--no-live`, `--no-open` |
+| `ai-team resume [id]` | Continue a paused or failed mission (`--budget` raises the limit) |
+| `ai-team status [id]` · `ai-team runs` | Mission status · list of missions |
+| `ai-team report [id]` | Open the visual mission report |
+| `ai-team team` | Meet the team |
+| `ai-team doctor` | Check Node, config, checks, onboarding and Claude access |
 
-`build` options: `--yes` (don't ask the PM's open questions, accept proposed defaults), `--max-iterations <n>`, `--model <id>`, `--git` (branch + commit per step), `--quiet` (hide live agent activity).
-
-When the PM finds real ambiguity it asks you (e.g. *"Q-2: Can a coupon be combined with other discounts? [Enter = no]"*). Your answers become part of the approved spec.
-
-## What gets created
-
-```
-.ai-team/
-├── config.json          # workflow settings + checks
-├── rules.md             # your project constitution — every agent must follow it
-├── agents/              # role prompts — customize freely
-│   ├── pm.md  developer.md  qa.md  bug-fixer.md  security.md  reviewer.md
-├── memory/
-│   └── lessons.md       # learned conventions, grows over time
-└── runs/
-    └── 20261008-1412-add-course-coupons/
-        ├── request.md
-        ├── 01-requirements.md
-        ├── 02-implementation.md
-        ├── 03-checks-v1.md
-        ├── 04-qa-round1.md
-        ├── 05-fix-round1.md
-        ├── …
-        ├── 11-release.md
-        └── state.json   # resumable workflow state
-```
-
-Every run leaves a full audit trail: what was asked, what was specified, what was built, what broke, how it was fixed, and why it was approved.
+When VISION finds a real product question she asks you (`Q-2: Can coupons stack? [Enter = no]`); `--yes` accepts the proposed defaults.
 
 ## Configuration — `.ai-team/config.json`
 
 ```jsonc
 {
-  "mode": "standard",            // or "quick"
-  "maxIterations": 5,            // fix/rework rounds before the gate rejects
-  "checks": [                    // run by the orchestrator, not the AI
-    { "name": "lint", "command": "npm run lint" },
-    { "name": "test", "command": "npm run test" },
-    { "name": "build", "command": "npm run build" }
-  ],
-  "checkTimeoutSec": 900,
-  "git": { "branch": false, "commit": false },  // or pass --git
-  "permissions": "allowlist",    // "bypass" only inside sandboxes/CI containers
-  "model": "claude-sonnet-5-5",  // optional; defaults to your Claude Code model
-  "models": { "reviewer": "claude-opus-5-5" },  // optional per-role override
-  "maxBudgetUsdPerAgent": 5,     // optional spend cap per agent call
-  "maxTurnsPerAgent": 200
+  "mode": "auto",                 // auto (JARVIS decides) | quick | full
+  "budgetUsd": 5,                 // optional limit per mission
+  "maxIterations": 5,             // fix/rework rounds before HAL rejects
+  "checks": [{ "name": "test", "command": "npm run test" }],   // auto-detected
+  "baselineChecks": true,
+  "team": { "names": { "developer": "FRIDAY" } },
+  "models": { "reviewer": "claude-opus-5-5" },  // optional per-role model
+  "effort": { "security": "high" },             // optional per-role effort override
+  "guardrails": { "soloMaxChangedLines": 40, "soloMaxFiles": 3, "sensitivePaths": [] },
+  "rules": { "autoLearn": true, "maxLearned": 40 },
+  "git": { "branch": false, "commit": false },  // or --git
+  "ui": { "live": true, "emoji": true, "openReport": true },
+  "permissions": "allowlist"      // "bypass" only in sandboxes; write limits still apply
 }
 ```
 
-Agents also load your project's `CLAUDE.md` and Claude Code settings, so existing project instructions apply.
+To customize a member completely, drop a playbook into `.ai-team/playbooks/<name>.md` (see `templates/playbooks/`). For lighter tweaks, add project notes in `.ai-team/team/<role>.md`.
 
-**Git integration** (`--git`): creates `ai-team/<feature>` and commits after each implementation/fix step, producing a reviewable history. It only activates on a clean working tree, so your uncommitted work is never mixed in. It never pushes.
+## Requirements
 
-## Severity rules
-
-- QA: any bug, or any failing check, sends the work to the Bug Fixer.
-- Security & Code Review: any `CRITICAL`, `HIGH` or `MEDIUM` finding rejects — even if the agent itself wrote "APPROVED". `LOW` findings are recorded but don't block.
+Node.js 20+, and access to Claude: a Claude Code login on this machine (run `claude` once) or `ANTHROPIC_API_KEY`. The Claude Code runtime is bundled through the Claude Agent SDK.
 
 ## Programmatic use
 
@@ -161,18 +148,16 @@ import { Orchestrator, ClaudeCodeProvider, loadConfig } from 'ai-engineering-tea
 
 const root = process.cwd();
 const outcome = await new Orchestrator({ root, config: loadConfig(root), provider: new ClaudeCodeProvider() })
-  .build('Add a health check endpoint');
-console.log(outcome.state.status); // 'approved' | 'rejected' | 'failed'
+  .build('Add a health check endpoint', { budgetUsd: 2 });
+console.log(outcome.state.status, outcome.reportPath);
 ```
-
-Providers implement a single method (`run(request) → { output, costUsd, turns }`), so other models can be plugged in. `MockProvider` is included for testing your own workflows.
 
 ## Roadmap
 
-- **v0.2** — GitHub: push branch, open PR with the release report, watch CI and fix failures.
-- **v0.3** — Architect agent for large features; parallel QA/security/review.
-- **v0.4** — `ai-team dashboard`: local web UI for runs, artifacts, costs.
-- **v0.5** — More providers (OpenAI, Gemini, local models).
+- EVE testing UIs in a real browser, with screenshots in the report
+- GitHub: open a PR with the mission report, watch CI and fix failures
+- Talk to members directly inside Claude Code (`@EDITH review my auth middleware`)
+- A dashboard across missions; more model providers
 
 ## License
 

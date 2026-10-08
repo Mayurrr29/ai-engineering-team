@@ -1,0 +1,27 @@
+{
+  "scenario": "04-tiny-change",
+  "label": "solo-claude-code",
+  "task": "Change the generic 404 message for unknown routes from \"Not found\" to \"Resource not found\".",
+  "at": "2026-10-08T19:18:11.095Z",
+  "exitCodes": {},
+  "status": "done",
+  "costUsd": 0.15,
+  "onboardingCostUsd": 0,
+  "iterations": null,
+  "lineup": "solo agent",
+  "wallMinutes": 0.8,
+  "hidden": {
+    "passed": 3,
+    "total": 3,
+    "failures": []
+  },
+  "visible": {
+    "passed": 16,
+    "total": 16,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/errors.js",
+    "test/app.test.js"
+  ]
+}

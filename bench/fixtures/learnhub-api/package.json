@@ -1,0 +1,14 @@
+{
+  "name": "learnhub-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LearnHub course marketplace API",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

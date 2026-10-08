@@ -55,3 +55,35 @@ export async function runChecks(checks: Check[], cwd: string, timeoutSec: number
   for (const check of checks) results.push(await runCheck(check, cwd, timeoutSec));
   return results;
 }
+
+/** Reads the number of failing tests from common runners' output (node:test, Jest, Vitest, Mocha, pytest). */
+export function failureCount(output: string): number | undefined {
+  const patterns = [/^# fail (\d+)/m, /Tests:\s+(\d+) failed/, /Tests\s+(\d+) failed/, /(\d+) failing\b/, /\b(\d+) failed\b/];
+  for (const pattern of patterns) {
+    const match = pattern.exec(output);
+    if (match) return Number(match[1]);
+  }
+  return undefined;
+}
+
+/**
+ * Splits failing checks into blocking ones and ones that were already failing before the mission.
+ * A pre-existing failure still blocks if it got worse (more failing tests than before).
+ */
+export function classifyChecks(results: CheckResult[], baseline?: CheckResult[]): { blocking: string[]; preexisting: string[] } {
+  const blocking: string[] = [];
+  const preexisting: string[] = [];
+  for (const result of results) {
+    if (result.passed) continue;
+    const before = baseline?.find((b) => b.name === result.name);
+    if (before && !before.passed && !result.timedOut) {
+      const now = failureCount(result.output);
+      const then = failureCount(before.output);
+      if (now !== undefined && then !== undefined && now > then) blocking.push(result.name);
+      else preexisting.push(result.name);
+    } else {
+      blocking.push(result.name);
+    }
+  }
+  return { blocking, preexisting };
+}

@@ -1,0 +1,38 @@
+{
+  "scenario": "01-profile-update",
+  "label": "v0.2.0",
+  "task": "Let users update their profile: add `PATCH /users/:id` that accepts `name` and `email` in the JSON body and returns the updated user as `{ data: user }`. Users can update their own profile; admins can update anyone's.",
+  "at": "2026-10-08T19:30:26.153Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 4.05,
+  "onboardingCostUsd": 0.37,
+  "iterations": 1,
+  "lineup": {
+    "pm": "full",
+    "architect": "off",
+    "qa": "full",
+    "security": "light",
+    "reviewer": "full"
+  },
+  "wallMinutes": 12.2,
+  "hidden": {
+    "passed": 15,
+    "total": 15,
+    "failures": []
+  },
+  "visible": {
+    "passed": 33,
+    "total": 33,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "src/validate.js",
+    "test/users.patch.test.js"
+  ],
+  "rescoredAt": "2026-10-08T19:37:57.148Z"
+}

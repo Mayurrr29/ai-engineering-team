@@ -1,0 +1,1 @@
+Let users update their profile: add `PATCH /users/:id` that accepts `name` and `email` in the JSON body and returns the updated user as `{ data: user }`. Users can update their own profile; admins can update anyone's.

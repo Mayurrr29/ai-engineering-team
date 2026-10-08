@@ -1,4 +1,4 @@
-import type { RoleName } from '../config.js';
+import type { RoleId } from '../team.js';
 import { AgentError, type AgentRequest, type AgentResult, type AIProvider } from './types.js';
 
 type Responder = unknown | ((req: AgentRequest) => unknown);
@@ -10,9 +10,12 @@ type Responder = unknown | ((req: AgentRequest) => unknown);
 export class MockProvider implements AIProvider {
   readonly name = 'mock';
   readonly calls: AgentRequest[] = [];
-  private readonly queues: Partial<Record<RoleName, Responder[]>>;
+  private readonly queues: Partial<Record<RoleId, Responder[]>>;
 
-  constructor(script: Partial<Record<RoleName, Responder[]>>) {
+  constructor(
+    script: Partial<Record<RoleId, Responder[]>>,
+    private readonly costPerCall = 0.01,
+  ) {
     this.queues = Object.fromEntries(Object.entries(script).map(([k, v]) => [k, [...(v ?? [])]]));
   }
 
@@ -21,8 +24,9 @@ export class MockProvider implements AIProvider {
     const queue = this.queues[req.role];
     if (!queue || queue.length === 0) throw new AgentError(`MockProvider: no response scripted for role "${req.role}"`);
     const next = queue.length > 1 ? queue.shift() : queue[0];
-    const output = typeof next === 'function' ? (next as (r: AgentRequest) => unknown)(req) : next;
+    const output = typeof next === 'function' ? await (next as (r: AgentRequest) => unknown)(req) : next;
     if (output instanceof Error) throw output;
-    return { output, costUsd: 0.01, turns: 1 };
+    req.onActivity?.('Read src/app.js');
+    return { output, costUsd: this.costPerCall, turns: 1 };
   }
 }

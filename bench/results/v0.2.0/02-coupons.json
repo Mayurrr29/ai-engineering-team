@@ -1,0 +1,43 @@
+{
+  "scenario": "02-coupons",
+  "label": "v0.2.0",
+  "task": "Instructors can create discount coupons for their own courses, and students can apply a coupon code when buying a course.\n\n- `POST /courses/:id/coupons` with `{ code, percentOff, expiresAt?, maxRedemptions? }` creates a coupon and returns `201 { data: coupon }`.\n- `POST /orders` accepts an optional `couponCode`; when a valid coupon is applied, the order `amount` is discounted.",
+  "at": "2026-10-08T19:37:43.341Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 6.39,
+  "onboardingCostUsd": 0.32,
+  "iterations": 1,
+  "lineup": {
+    "pm": "full",
+    "architect": "full",
+    "qa": "full",
+    "security": "full",
+    "reviewer": "full"
+  },
+  "wallMinutes": 19.4,
+  "hidden": {
+    "passed": 13,
+    "total": 13,
+    "failures": []
+  },
+  "visible": {
+    "passed": 49,
+    "total": 49,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/db.js",
+    "src/routes/courses.js",
+    "src/routes/orders.js",
+    "src/seed.js",
+    "src/serializers.js",
+    "src/validate.js",
+    "test/orders.test.js",
+    "test/coupons.test.js"
+  ],
+  "rescoredAt": "2026-10-08T19:37:59.891Z"
+}

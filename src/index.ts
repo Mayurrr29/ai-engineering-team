@@ -1,9 +1,15 @@
-export { Orchestrator, type OrchestratorOptions, type RunOutcome } from './orchestrator.js';
-export { Config, loadConfig, detectChecks, type Check, type RoleName } from './config.js';
+export { Orchestrator, basicDebrief, fixedPlan, type OrchestratorOptions, type RunOutcome } from './orchestrator.js';
+export { Config, loadConfig, detectChecks, type Check } from './config.js';
 export { initProject } from './init.js';
+export { onboard, repositoryFacts } from './onboarding.js';
 export { ClaudeCodeProvider } from './providers/claude.js';
 export { MockProvider } from './providers/mock.js';
-export { AgentError, type AIProvider, type AgentRequest, type AgentResult } from './providers/types.js';
+export { AgentError, checkWrite, type Access, type AIProvider, type AgentRequest, type AgentResult } from './providers/types.js';
 export { evaluateRelease, type ReleaseDecision } from './release.js';
+export { renderReport, writeReport } from './report/html.js';
 export { RunStore, type RunState } from './state.js';
+export { MEMBERS, ROSTER_ORDER, nameOf, type RoleId, type MemberDef } from './team.js';
+export { diffGuardrails, planGuardrails } from './guardrails.js';
+export { scanDiff } from './scans.js';
+export type { TeamUI } from './ui/types.js';
 export * from './schemas.js';

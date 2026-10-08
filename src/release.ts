@@ -1,6 +1,8 @@
+import type { Finding, Severity } from './schemas.js';
 import type { RunState } from './state.js';
+import { nameOf, type TeamNames } from './team.js';
 
-export type GateStatus = 'PASS' | 'FAIL' | 'SKIPPED' | 'PENDING';
+export type GateStatus = 'PASS' | 'FAIL' | 'SKIPPED' | 'WARN';
 
 export interface GateLine {
   label: string;
@@ -12,13 +14,24 @@ export interface ReleaseDecision {
   approved: boolean;
   lines: GateLine[];
   reasons: string[];
+  /** HAL's line for the human. */
+  verdict: string;
+}
+
+export const blocks = (severity: Severity) => severity !== 'LOW';
+
+/** Findings that block release: not LOW, and not waived. */
+export function blockingFindings(findings: Finding[], state: RunState): Finding[] {
+  const waived = new Set(state.waivers.map((w) => w.id));
+  return findings.filter((f) => blocks(f.severity) && !waived.has(f.id));
 }
 
 /**
- * The release gate is deliberately NOT an LLM. It checks the recorded artifacts:
- * every verdict must be a pass AND must have been made against the current code version.
+ * HAL 9000, the release gate. Deliberately NOT an LLM: it checks the recorded verdicts.
+ * Every stage that was staffed must have passed, against the current code version.
  */
-export function evaluateRelease(state: RunState, opts: { securityEnabled: boolean; checksConfigured: boolean }): ReleaseDecision {
+export function evaluateRelease(state: RunState, opts: { checksConfigured: boolean; names?: TeamNames; humanName?: string }): ReleaseDecision {
+  const names = opts.names ?? {};
   const lines: GateLine[] = [];
   const reasons: string[] = [];
   const fail = (label: string, detail: string) => {
@@ -26,10 +39,19 @@ export function evaluateRelease(state: RunState, opts: { securityEnabled: boolea
     reasons.push(`${label}: ${detail}`);
   };
   const fresh = (v?: { codeVersion: number }) => v !== undefined && v.codeVersion === state.codeVersion;
+  const waived = new Set(state.waivers.map((w) => w.id));
+  const waivedNote = (ids: string[]) => (ids.length ? ` (${ids.length} waived: ${ids.join(', ')})` : '');
+  const notStaffed = `not staffed${state.plan ? ` — ${state.plan.size} task` : ''}`;
 
-  if (state.mode === 'quick') lines.push({ label: 'Requirements', status: 'SKIPPED', detail: 'quick mode' });
-  else if (state.spec) lines.push({ label: 'Requirements', status: 'PASS', detail: `${state.spec.acceptanceCriteria.length} acceptance criteria, ${state.spec.edgeCases.length} edge cases` });
+  if (state.plan) lines.push({ label: 'Mission plan', status: 'PASS', detail: `size ${state.plan.size}, risk ${state.plan.risk}` });
+
+  if (state.lineup.pm === 'off') lines.push({ label: 'Requirements', status: 'SKIPPED', detail: notStaffed });
+  else if (state.spec) lines.push({ label: 'Requirements', status: 'PASS', detail: `${state.spec.acceptanceCriteria.length} criteria, ${state.spec.edgeCases.length} edge cases` });
   else fail('Requirements', 'no approved spec');
+
+  if (state.lineup.architect === 'off') lines.push({ label: 'Design', status: 'SKIPPED', detail: notStaffed });
+  else if (state.design) lines.push({ label: 'Design', status: 'PASS', detail: `${state.design.decisions.length} decisions, ${state.design.filePlan.length} files planned` });
+  else fail('Design', 'no design');
 
   if (state.implementation) lines.push({ label: 'Implementation', status: 'PASS', detail: `${state.codeVersion} code revision(s)` });
   else fail('Implementation', 'nothing was implemented');
@@ -37,51 +59,69 @@ export function evaluateRelease(state: RunState, opts: { securityEnabled: boolea
   if (!opts.checksConfigured) lines.push({ label: 'Checks', status: 'SKIPPED', detail: 'none configured' });
   else if (!state.checks) fail('Checks', 'never ran');
   else if (!fresh(state.checks)) fail('Checks', 'did not run against the latest code');
+  else if (state.checks.blocking.length) fail('Checks', `failing: ${state.checks.blocking.join(', ')}`);
   else {
-    const failed = state.checks.results.filter((r) => !r.passed).map((r) => r.name);
-    if (failed.length) fail('Checks', `failing: ${failed.join(', ')}`);
-    else lines.push({ label: 'Checks', status: 'PASS', detail: state.checks.results.map((r) => r.name).join(', ') });
+    const pre = state.checks.preexisting.length ? ` (already failing before: ${state.checks.preexisting.join(', ')})` : '';
+    lines.push({ label: 'Checks', status: state.checks.preexisting.length ? 'WARN' : 'PASS', detail: `${state.checks.results.map((r) => r.name).join(', ')}${pre}` });
   }
 
-  if (!state.qa) fail('QA', 'never ran');
+  if (state.lineup.qa === 'off') lines.push({ label: 'QA', status: 'SKIPPED', detail: notStaffed });
+  else if (!state.qa) fail('QA', 'never ran');
   else if (!fresh(state.qa)) fail('QA', 'did not test the latest code');
-  else if (state.qa.status !== 'PASS' || state.qa.bugs.length) fail('QA', `${state.qa.bugs.length} open bug(s)`);
-  else lines.push({ label: 'QA', status: 'PASS', detail: `${state.qa.scenarios.length} scenarios` });
+  else {
+    const open = state.qa.bugs.filter((b) => blocks(b.severity) && !waived.has(b.id));
+    const waivedIds = state.qa.bugs.filter((b) => waived.has(b.id)).map((b) => b.id);
+    const failedWithoutBugs = state.qa.status === 'FAIL' && state.qa.bugs.length === 0 && !waived.has('QA-FAIL');
+    if (open.length) fail('QA', `${open.length} open bug(s): ${open.map((b) => b.id).join(', ')}`);
+    else if (failedWithoutBugs) fail('QA', 'QA failed without itemized bugs');
+    else lines.push({ label: 'QA', status: 'PASS', detail: `${state.qa.scenarios.length} scenarios${waivedNote(waivedIds)}` });
+  }
 
-  if (!opts.securityEnabled) lines.push({ label: 'Security', status: 'SKIPPED', detail: state.mode === 'quick' ? 'quick mode' : 'disabled' });
-  else if (!state.security) fail('Security', 'never ran');
-  else if (!fresh(state.security)) fail('Security', 'did not review the latest code');
-  else if (state.security.status !== 'APPROVED') fail('Security', `${blocking(state.security.findings).length} blocking finding(s)`);
-  else lines.push({ label: 'Security', status: 'PASS', detail: nonBlockingNote(state.security.findings) });
+  for (const [key, label, verdict] of [
+    ['security', 'Security', state.security],
+    ['reviewer', 'Code review', state.review],
+  ] as const) {
+    if (state.lineup[key] === 'off') {
+      lines.push({ label, status: 'SKIPPED', detail: notStaffed });
+      continue;
+    }
+    if (!verdict) fail(label, 'never ran');
+    else if (!fresh(verdict)) fail(label, 'did not review the latest code');
+    else {
+      const open = blockingFindings(verdict.findings, state);
+      const rejectedWithoutFindings = verdict.status === 'REJECTED' && verdict.findings.length === 0 && !waived.has(`${key === 'security' ? 'SEC' : 'REV'}-REJECT`);
+      const waivedIds = verdict.findings.filter((f) => waived.has(f.id)).map((f) => f.id);
+      const low = verdict.findings.filter((f) => !blocks(f.severity)).length;
+      if (open.length) fail(label, `${open.length} blocking finding(s): ${open.map((f) => f.id).join(', ')}`);
+      else if (rejectedWithoutFindings) fail(label, 'rejected without itemized findings');
+      else lines.push({ label, status: 'PASS', detail: `${low ? `${low} low-severity note(s)` : 'clean'}${waivedNote(waivedIds)}` });
+    }
+  }
 
-  if (!state.review) fail('Code Review', 'never ran');
-  else if (!fresh(state.review)) fail('Code Review', 'did not review the latest code');
-  else if (state.review.status !== 'APPROVED') fail('Code Review', `${blocking(state.review.findings).length} blocking finding(s)`);
-  else lines.push({ label: 'Code Review', status: 'PASS', detail: nonBlockingNote(state.review.findings) });
+  if (state.integrity.length) lines.push({ label: 'Integrity', status: 'WARN', detail: state.integrity.join('; ') });
 
   if (state.iteration > state.maxIterations) fail('Iterations', `exceeded limit of ${state.maxIterations}`);
-  else lines.push({ label: 'Iterations', status: 'PASS', detail: `${state.iteration}/${state.maxIterations}` });
+  else lines.push({ label: 'Rounds', status: 'PASS', detail: `${state.iteration}/${state.maxIterations}` });
 
-  return { approved: reasons.length === 0, lines, reasons };
+  const approved = reasons.length === 0;
+  const who = opts.humanName ?? 'Dave';
+  const verdict = approved
+    ? `Affirmative, ${who}. All systems are functioning perfectly.`
+    : `I'm sorry, ${who}. I'm afraid I can't merge that.`;
+  return { approved, lines, reasons, verdict: `${nameOf('gate', names)}: ${verdict}` };
 }
 
-function blocking(findings: { severity: string }[]) {
-  return findings.filter((f) => f.severity !== 'LOW');
-}
-
-function nonBlockingNote(findings: { severity: string }[]): string | undefined {
-  const low = findings.filter((f) => f.severity === 'LOW').length;
-  return low ? `${low} low-severity note(s)` : undefined;
-}
-
-export function renderRelease(state: RunState, decision: ReleaseDecision): string {
+export function renderRelease(state: RunState, decision: ReleaseDecision, flowDiagram: string): string {
   const rows = decision.lines.map((l) => `| ${l.label} | ${l.status} | ${l.detail ?? ''} |`).join('\n');
   const out = [
-    `# Release — ${state.spec?.title ?? state.feature}`,
+    `# Release — ${state.plan?.missionName ?? state.feature}`,
     `**STATUS: ${decision.approved ? 'APPROVED ✅' : 'REJECTED ❌'}**`,
+    `> ${decision.verdict}`,
     `| Gate | Status | Detail |\n|---|---|---|\n${rows}`,
   ];
   if (!decision.approved) out.push(`## Reasons\n\n${decision.reasons.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
-  out.push(`## Run\n\n- Run id: \`${state.id}\`\n- Fix/rework rounds: ${state.iteration}\n- Agent cost: $${state.costUsd.toFixed(2)}`);
+  if (state.waivers.length) out.push(`## Waivers\n\n${state.waivers.map((w) => `- **${w.id}** (${w.severity}) ${w.title} — waived by ${w.by}: ${w.reason}`).join('\n')}`);
+  if (flowDiagram) out.push(`## How the mission went\n\n${flowDiagram}`);
+  out.push(`## Mission\n\n- Id: \`${state.id}\`\n- Fix/rework rounds: ${state.iteration}\n- Agent cost: $${state.costUsd.toFixed(2)}${state.budgetUsd ? ` of $${state.budgetUsd.toFixed(2)} budget` : ''}`);
   return out.join('\n\n') + '\n';
 }

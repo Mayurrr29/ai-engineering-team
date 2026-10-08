@@ -1,0 +1,31 @@
+{
+  "scenario": "04-tiny-change",
+  "label": "v0.1.1",
+  "task": "Change the generic 404 message for unknown routes from \"Not found\" to \"Resource not found\".",
+  "at": "2026-10-08T17:42:31.572Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 1.13,
+  "onboardingCostUsd": 0,
+  "iterations": 0,
+  "lineup": null,
+  "wallMinutes": 2.7,
+  "hidden": {
+    "passed": 3,
+    "total": 3,
+    "failures": []
+  },
+  "visible": {
+    "passed": 15,
+    "total": 15,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/errors.js",
+    "test/app.test.js"
+  ],
+  "rescoredAt": "2026-10-08T19:17:08.988Z"
+}

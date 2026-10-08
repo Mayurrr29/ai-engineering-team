@@ -1,0 +1,27 @@
+{
+  "scenario": "03-user-search",
+  "label": "solo-claude-code",
+  "task": "Add an admin-only user search: `GET /users?search=<text>&page=<n>&limit=<n>` returns users whose name or email contains the search text, as `{ data: users, page, limit, total }`.",
+  "at": "2026-10-08T19:18:16.572Z",
+  "exitCodes": {},
+  "status": "done",
+  "costUsd": 0.29,
+  "onboardingCostUsd": 0,
+  "iterations": null,
+  "lineup": "solo agent",
+  "wallMinutes": 0.8,
+  "hidden": {
+    "passed": 10,
+    "total": 10,
+    "failures": []
+  },
+  "visible": {
+    "passed": 22,
+    "total": 22,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "test/users.test.js"
+  ]
+}
