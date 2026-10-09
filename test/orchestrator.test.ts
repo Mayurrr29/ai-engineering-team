@@ -396,3 +396,21 @@ test('onboarding writes the project profile, project rules and member notes', as
   assert.match(sys, /Stack guidance[\s\S]*MongoDB/);
   assert.match(sys, /All request bodies go through validate\(\)/);
 });
+
+test('late rounds: a brand-new MEDIUM issue in QA round 3 becomes a follow-up, not another fix round', async () => {
+  const root = tmpProject();
+  const provider = new MockProvider({
+    lead: [teamPlan(), debrief()],
+    pm: [spec()],
+    developer: [dev()],
+    qa: [qaFail('BUG-001', 'HIGH'), qaFail('BUG-002', 'MEDIUM'), qaFail('BUG-003', 'MEDIUM')],
+    bugFixer: [fix('BUG-001'), fix('BUG-002')],
+    security: [approve()],
+    reviewer: [approve()],
+  });
+  const out = await new Orchestrator({ root, config: config(), provider }).build('x');
+
+  assert.equal(out.state.status, 'approved');
+  assert.equal(byRole(provider, 'bugFixer').length, 2, 'round 2 still fixes the new MEDIUM; round 3 defers it');
+  assert.deepEqual(out.state.waivers.map((w) => [w.id, w.by]), [['BUG-003', 'policy']]);
+});

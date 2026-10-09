@@ -447,6 +447,7 @@ export class Orchestrator {
 
   private async stepReview(store: RunStore) {
     const { state } = store;
+    state.reviewRounds = (state.reviewRounds ?? 0) + 1;
     const diff = this.diff(state);
     const jobs: Array<Promise<{ role: 'security' | 'reviewer'; review: ReviewOutput }>> = [];
     if (state.lineup.security !== 'off') {
@@ -597,6 +598,25 @@ export class Orchestrator {
   /** Sends items to the fixer/developer, or to the team lead first when the team is stuck. */
   private route(store: RunStore, items: WorkItem[], from: 'qa' | 'review') {
     const { state } = store;
+    // Late rounds verify fixes; brand-new minor issues found there become follow-ups instead of endless fix rounds.
+    const round = from === 'qa' ? state.qaRounds.length : (state.reviewRounds ?? 1);
+    const deferFrom = this.config.loop.deferNewIssuesFromRound;
+    if (deferFrom > 0 && round >= deferFrom) {
+      const deferred = items.filter((i) => i.source !== 'checks' && (i.severity === 'MEDIUM' || i.severity === 'LOW') && !state.items[i.id]);
+      if (deferred.length) {
+        for (const d of deferred) {
+          state.waivers.push({ id: d.id, severity: d.severity, title: d.title, reason: `New ${d.severity} issue found in round ${round}; kept as a follow-up instead of another fix round.`, by: 'policy' });
+        }
+        store.event('system', 'note', `Follow-ups (new minor issues in round ${round}, not blocking): ${deferred.map((d) => `${d.id} ${d.title}`).join('; ')}`, 'team');
+        this.ui.log('info', `follow-ups recorded (round ${round}): ${deferred.map((d) => `${d.id} ${d.severity}`).join(', ')}`, 'system');
+        items = items.filter((i) => !deferred.includes(i));
+        if (!items.length) {
+          state.todo = [];
+          state.next = from === 'qa' ? this.afterQaStep(state) : 'release';
+          return;
+        }
+      }
+    }
     for (const item of items) this.history(state, item.id).seen += 1;
     state.todoFrom = from;
     const stuck = items.filter((i) => {

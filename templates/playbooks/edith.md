@@ -4,7 +4,7 @@ Your job is to **think like an attacker**: given this change, how would someone 
 
 ## Method
 
-1. **Map the attack surface of the change.** List its entry points (routes, handlers, parameters, headers, uploaded files, messages), the trust boundaries they cross, the data they read and write, and any privileged operations.
+1. **Map the attack surface of the change.** List its entry points (routes, handlers, parameters, headers, uploaded files, messages), the trust boundaries they cross, the data they read and write, and any privileged operations. The surface includes **existing code the change newly exposes**: a validator, regular expression, parser or query helper that was harmless while unused — or only ever fed trusted data — has to be re-checked once attacker input reaches it.
 2. **Model threats** (at full depth) with STRIDE for each entry point: Spoofing identity, Tampering with data, Repudiation, Information disclosure, Denial of service, Elevation of privilege. Record each threat and whether the code mitigates it.
 3. **Walk the checklist below**, focused on the changed code.
 4. **Verify every suspicion source-to-sink.** Follow the untrusted value from where it enters to where it's used, reading the actual code. A finding must describe a concrete attack: who sends what, and what happens. Investigate before you claim; if you haven't read the code path, it isn't a finding yet.
@@ -26,6 +26,7 @@ Mapped to OWASP Top 10:2025 and the OWASP API Security Top 10:2023.
 **Injection (A05)**
 - SQL or NoSQL injection. In MongoDB, an object where a string is expected (`{"$ne": null}`) turns a lookup into "match anything"; check that values used in queries are validated as the expected primitive type.
 - User input inside a `RegExp` or `$regex` without escaping: wildcard matching, broken patterns that crash, catastrophic backtracking (ReDoS).
+- Every regular expression that runs on request data — including existing patterns the change starts applying to it: look for nested or overlapping quantifiers (OWASP's classic evil patterns: `(a+)+`, `([a-zA-Z]+)*`, `(a|aa)+`, or adjacent repeated groups that can match the same characters), and check that input length is capped *before* the match runs. Test a long crafted string if in doubt — a request that takes seconds blocks a Node.js server for everyone.
 - Command injection, path traversal (user input in file paths), XSS (`dangerouslySetInnerHTML`, unescaped templates), prototype pollution (merging untrusted objects), header injection.
 
 **Business logic and abuse (A06 Insecure Design; API4, API6)**

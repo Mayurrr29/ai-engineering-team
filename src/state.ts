@@ -45,7 +45,8 @@ export interface Waiver {
   severity: Severity;
   title: string;
   reason: string;
-  by: 'lead' | 'human';
+  /** lead: JARVIS ruled it out of scope · human: you accepted it · policy: a new minor issue in a late round, kept as a follow-up. */
+  by: 'lead' | 'human' | 'policy';
 }
 
 export interface Answer {
@@ -125,6 +126,8 @@ export interface RunState {
   qaRounds: Array<{ round: number; codeVersion: number; status: 'PASS' | 'FAIL'; bugIds: string[]; bugs?: Array<{ id: string; title: string; severity: Severity }>; scenarios: number }>;
   security?: Verdict<ReviewOutput>;
   review?: Verdict<ReviewOutput>;
+  /** Number of review rounds (security + code review run together). */
+  reviewRounds?: number;
   scans: ScanLead[];
   diffStat?: { files: Array<{ path: string; added: number; deleted: number }>; changedLines: number; measured?: boolean };
 

@@ -63,6 +63,15 @@ export const Config = z.object({
       sensitivePaths: z.array(z.string()).default([]),
     })
     .default({ soloMaxChangedLines: 40, soloMaxFiles: 3, sensitivePaths: [] }),
+  loop: z
+    .object({
+      /**
+       * From this QA or review round on, NEW issues of MEDIUM or LOW severity are recorded as follow-ups instead of
+       * starting another fix round (HIGH/CRITICAL and already-reported issues still block). 0 = always block.
+       */
+      deferNewIssuesFromRound: z.number().int().min(0).default(3),
+    })
+    .default({ deferNewIssuesFromRound: 3 }),
   rules: z
     .object({
       /** Let JARVIS add, update and remove learned rules after each mission. */

@@ -320,7 +320,7 @@ function qaSection(state: RunState, names: TeamNames): string {
       const steps = [
         `<li>${avatar('qa', names, 'sm')}<span>Found in QA round ${found ?? '?'}</span></li>`,
         ...fixes.map((f) => `<li>${avatar(f.by, names, 'sm')}<span>${esc(f.status === 'FIXED' ? 'Fixed' : f.status === 'NOT_A_BUG' ? 'Disputed (not a bug)' : 'Could not fix')} in round ${f.round}${f.cause ? ` — <i>${rich(f.cause)}</i>` : ''}</span></li>`),
-        waiver ? `<li>${avatar(waiver.by === 'human' ? 'human' : 'lead', names, 'sm')}<span>Waived: ${rich(waiver.reason)}</span></li>` : '',
+        waiver ? `<li>${avatar(waiver.by === 'human' ? 'human' : waiver.by === 'policy' ? 'system' : 'lead', names, 'sm')}<span>${waiver.by === 'policy' ? 'Follow-up' : 'Waived'}: ${rich(waiver.reason)}</span></li>` : '',
         verified ? `<li>${avatar('qa', names, 'sm')}<span>Verified fixed in round ${lastRound}</span></li>` : latest.has(id) && !waiver ? `<li>${chip('still open', 'bad')}</li>` : '',
       ].join('');
       const tone: Tone = waiver ? 'warn' : latest.has(id) ? 'bad' : 'good';

@@ -1,0 +1,36 @@
+{
+  "scenario": "03-user-search",
+  "label": "v0.2.1-calibrated",
+  "task": "Add an admin-only user search: `GET /users?search=<text>&page=<n>&limit=<n>` returns users whose name or email contains the search text, as `{ data: users, page, limit, total }`.",
+  "at": "2026-10-08T19:46:07.632Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 1.44,
+  "onboardingCostUsd": 0.32,
+  "iterations": 0,
+  "lineup": {
+    "pm": "off",
+    "architect": "off",
+    "qa": "light",
+    "security": "light",
+    "reviewer": "light"
+  },
+  "wallMinutes": 5.2,
+  "hidden": {
+    "passed": 10,
+    "total": 10,
+    "failures": []
+  },
+  "visible": {
+    "passed": 28,
+    "total": 28,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "test/user-search.test.js"
+  ]
+}

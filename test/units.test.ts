@@ -248,3 +248,8 @@ test('slugify', () => {
   assert.equal(slugify('Add Google login (OAuth 2.0)!'), 'add-google-login-oauth-2-0');
   assert.equal(slugify('🚀'), 'feature');
 });
+
+test('scan flags regular expressions applied to request data (ReDoS lead)', () => {
+  const leads = scanDiff(metrics([{ path: 'src/routes/users.js', lines: ['    email: { type: "string", maxLength: 254, pattern: EMAIL_PATTERN },'] }]));
+  assert.ok(leads.some((l) => l.rule === 'regex-on-input' && /CWE-1333/.test(l.standard)));
+});
