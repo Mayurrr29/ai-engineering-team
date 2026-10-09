@@ -1,6 +1,6 @@
 # Proving Ground results
 
-Generated 2026-10-08 20:06 UTC. Hidden tests are never shown to the team; they check the traps described in [docs/research.md](../docs/research.md).
+Generated 2026-10-09 02:31 UTC. Hidden tests are never shown to the team; they check the traps described in [docs/research.md](../docs/research.md).
 
 ## Totals
 
@@ -10,6 +10,8 @@ Generated 2026-10-08 20:06 UTC. Hidden tests are never shown to the team; they c
 | **v0.1.1** | 41/41 (100%) | 151/151 | $12.74 | 47.0 min | 4/4 |
 | **v0.2.0** | 41/41 (100%) | 130/130 | $13.26 (+$1.54 onboarding) | 41.7 min | 4/4 |
 | **v0.2.1-calibrated** | 40/41 (98%) | 119/119 | $9.81 (+$1.49 onboarding) | 36.7 min | 4/4 |
+| **v0.2.2** | 28/28 (100%) | 73/73 | $8.85 (+$0.70 onboarding) | 33.7 min | 2/2 |
+| **v0.2.2-repeat** | 15/15 (100%) | 27/27 | $1.51 (+$0.39 onboarding) | 5.5 min | 1/1 |
 
 ## 01-profile-update
 
@@ -19,6 +21,8 @@ Generated 2026-10-08 20:06 UTC. Hidden tests are never shown to the team; they c
 | v0.1.1 | 15/15 | approved | $5.67 | 23.6 min | 2 | - | — |
 | v0.2.0 | 15/15 | approved | $4.05 | 12.2 min | 1 | dev + pm, qa, security(l), reviewer | — |
 | v0.2.1-calibrated | 14/15 | approved | $1.40 | 4.9 min | 0 | dev + qa(l), security(l), reviewer(l) | a crafted email cannot stall the server (ReDoS) |
+| v0.2.2 | 15/15 | approved | $2.25 | 6.8 min | 1 | dev + qa(l), security(l), reviewer(l) | — |
+| v0.2.2-repeat | 15/15 | approved | $1.51 | 5.5 min | 0 | dev + qa(l), security(l), reviewer(l) | — |
 
 ## 02-coupons
 
@@ -28,6 +32,7 @@ Generated 2026-10-08 20:06 UTC. Hidden tests are never shown to the team; they c
 | v0.1.1 | 13/13 | approved | $3.44 | 11.9 min | 0 | - | — |
 | v0.2.0 | 13/13 | approved | $6.39 | 19.4 min | 1 | dev + pm, architect, qa, security, reviewer | — |
 | v0.2.1-calibrated | 13/13 | approved | $6.74 | 24.8 min | 4 | dev + qa, security, reviewer | — |
+| v0.2.2 | 13/13 | approved | $6.60 | 26.9 min | 3 | dev + qa, security, reviewer | — |
 
 ## 03-user-search
 

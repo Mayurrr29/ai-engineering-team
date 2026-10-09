@@ -91,7 +91,16 @@ It works in light and dark mode. Every mission also leaves Markdown artifacts in
 
 ## Proving Ground
 
-We measure, not guess. `bench/` contains a realistic Express + MongoDB-style API and four tasks with **hidden tests** the team never sees (IDOR, mass assignment, NoSQL injection, ReDoS, race conditions on coupon limits, data leaks…). Results, including a plain single-agent Claude Code baseline, are in [bench/RESULTS.md](bench/RESULTS.md); the research behind every design decision is in [docs/research.md](docs/research.md).
+We measure, not guess. `bench/` contains a realistic Express + MongoDB-style API and four tasks with **hidden tests** the team never sees (IDOR, mass assignment, NoSQL injection, ReDoS, race conditions on coupon limits, data leaks…).
+
+| Task | Plain Claude Code | v0.1 | v0.2 |
+|---|---|---|---|
+| Tiny change (XS) | 3/3 · $0.15 | 3/3 · $1.13 | 3/3 · $0.23 |
+| Search (M) | 10/10 · $0.29 | 10/10 · $2.50 | 10/10 · $1.44 |
+| Profile update (M, security trap) | **14/15** · $0.29 | 15/15 · $5.67 | **15/15** · $1.51–2.25 |
+| Coupons (L, money + race) | 13/13 · $0.64 | 13/13 · $3.44 | 13/13 · $6.60 |
+
+The honest summary: a single modern agent is strong and cheap. The team's edge is depth on risky work — EDITH catches attacks a solo developer misses — plus a verified, documented process. That's why JARVIS keeps small tasks small. Full results: [bench/RESULTS.md](bench/RESULTS.md); research: [docs/research.md](docs/research.md).
 
 ```bash
 node bench/run.mjs --reference                                  # prove the hidden tests are fair

@@ -92,6 +92,29 @@ Three contenders on the same four tasks, scored by hidden tests (full table: [`b
 - A narrower definition of "high risk" (money, authentication flows, irreversible changes, newly exposed data).
 - Planning examples moved to other domains. **Disclosure:** the playbooks used in `v0.2.0` contained example requests similar to two benchmark tasks; `v0.2.1-calibrated` uses neutral examples.
 
+### Second calibration and validation (v0.2.2)
+
+The calibrated run (`v0.2.1-calibrated`) cut cost by 26% ($9.81) but showed two problems: EDITH missed the ReDoS that she had caught in `v0.2.0` (40/41), and on the coupons mission QA kept finding a *new* MEDIUM issue in every re-test round (5 QA rounds, 4 fix rounds). Two fixes, both enforced in code:
+
+- **Bounded discovery:** from round 3 on, new MEDIUM/LOW issues become recorded follow-ups (visible in the report and the debrief) instead of new fix rounds. HIGH/CRITICAL and already-reported issues still block.
+- **Newly exposed code is attack surface:** a deterministic scan lead for regular expressions applied to request data (CWE-1333), plus explicit playbook guidance for EDITH and FRIDAY.
+
+Validation (`v0.2.2`, `v0.2.2-repeat`): the profile mission passed **15/15 in both runs** ($2.25 and $1.51). In one run FRIDAY built the safe version straight away, with no fix rounds. On coupons the late-round issue became a follow-up as designed; that mission still cost $6.60, because JARVIS rates money-plus-concurrency work as high risk and staffs full-depth QA.
+
+### Where this leaves the team
+
+| Task | Plain Claude Code | v0.1 | v0.2 (final) |
+|---|---|---|---|
+| Tiny change (XS) | 3/3 · $0.15 | 3/3 · $1.13 | 3/3 · $0.23 |
+| Search (M) | 10/10 · $0.29 | 10/10 · $2.50 | 10/10 · $1.44 |
+| Profile update (M, security trap) | **14/15** · $0.29 | 15/15 · $5.67 | **15/15** · $1.51–2.25 |
+| Coupons (L, money + race) | 13/13 · $0.64 | 13/13 · $3.44 | 13/13 · $6.60 |
+
+- v0.2 matches v0.1's perfect hidden-test score at roughly 20–80% lower cost on XS–M tasks, and with far shorter missions.
+- Against a single agent, the team's measurable edge on this benchmark is security depth (the ReDoS). That costs 5–10× more for M tasks, plus the process artifacts: spec, evidence, reviews, report and rulebook.
+- High-risk L work is still expensive. JARVIS deliberately staffs full-depth QA for money and concurrency; set a `--budget`, or use `--quick` when you judge the risk lower.
+- Open question for the next round: harder scenarios (multi-module features, frontend, real databases) where a single agent's blind spots are larger.
+
 Single runs per task are noisy, and hidden tests can only check what we thought to test: treat small differences with caution.
 
 ## References
