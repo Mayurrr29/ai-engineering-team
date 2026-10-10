@@ -30,6 +30,8 @@ export interface AgentRequest {
   maxTurns?: number;
   maxBudgetUsd?: number;
   bypassPermissions?: boolean;
+  /** Continue an earlier session of the same member (same system prompt), so its context and prompt cache are reused. */
+  resumeSessionId?: string;
   /** Progress callback for live activity (tool calls etc.). */
   onActivity?: (line: string) => void;
 }

@@ -4,7 +4,7 @@ import type { CheckResult } from './checks.js';
 import { paths, slugify } from './paths.js';
 import type { AppliedRuleUpdate } from './rules.js';
 import type { ScanLead } from './scans.js';
-import type { Debrief, DesignOutput, DevOutput, Effort, FixOutput, LeadDecision, Lineup, MissionPlan, PmOutput, QaOutput, ReviewOutput, Severity } from './schemas.js';
+import type { AnswerOutput, Debrief, DesignOutput, DevOutput, Effort, FixOutput, LeadDecision, Lineup, MissionPlan, PmOutput, QaOutput, ReviewOutput, Severity, Signal } from './schemas.js';
 import type { TokenUsage } from './providers/types.js';
 import type { Actor, RoleId } from './team.js';
 
@@ -23,9 +23,11 @@ export type Step =
   | 'rework'
   | 'release'
   | 'debrief'
+  | 'answer'
   | 'done';
 
-export type RunStatus = 'running' | 'approved' | 'rejected' | 'failed' | 'paused';
+/** answered / planned: missions whose result is an answer or a plan rather than a code change. */
+export type RunStatus = 'running' | 'approved' | 'rejected' | 'failed' | 'paused' | 'answered' | 'planned';
 export type Mode = 'auto' | 'quick' | 'full';
 
 /** A verdict remembers which version of the code it judged, so stale approvals can't pass the release gate. */
@@ -33,7 +35,7 @@ export type Verdict<T> = T & { codeVersion: number };
 
 export interface WorkItem {
   id: string;
-  source: 'qa' | 'checks' | 'security' | 'review';
+  source: 'qa' | 'checks' | 'security' | 'review' | 'completeness';
   severity: Severity;
   title: string;
   details: string;
@@ -55,6 +57,21 @@ export interface Answer {
   question: string;
   answer: string;
   source: 'user' | 'default';
+}
+
+/** A signal as recorded in the team ledger. */
+export interface SignalEntry extends Signal {
+  id: string;
+  from: RoleId;
+  at: string;
+  codeVersion: number;
+  /** Blockers: set once the team lead ruled on it. */
+  resolved?: boolean;
+}
+
+export interface Coverage {
+  status: 'DONE' | 'PARTIAL' | 'NOT_DONE';
+  notes: string;
 }
 
 export interface ArtifactRef {
@@ -135,13 +152,24 @@ export interface RunState {
 
   todo: WorkItem[];
   /** Which stage sent the current todo: QA/checks go to the Bug Fixer, reviews go back to the Developer. */
-  todoFrom?: 'qa' | 'review';
+  todoFrom?: 'qa' | 'review' | 'completeness';
   waivers: Waiver[];
   decisions: Array<LeadDecision & { at: string }>;
   items: Record<string, ItemHistory>;
 
   debrief?: Debrief;
   ruleUpdates: AppliedRuleUpdate[];
+
+  /** Latest status of every acceptance criterion the developer reported on. */
+  coverage?: Record<string, Coverage>;
+  /** The team ledger: questions, assumptions, concerns, recruit requests and blockers raised by members. */
+  signals?: SignalEntry[];
+  /** Working-tree snapshot (git tree id) for each code revision, used for incremental re-reviews and to undo stray edits. */
+  snapshots?: Record<number, string>;
+  /** Agent sessions that can be continued, with the code revision each one last saw. */
+  sessions?: Partial<Record<RoleId, { id: string; codeVersion: number }>>;
+  /** The result of a question mission. */
+  answer?: AnswerOutput;
 
   events: TeamEvent[];
   calls: CallRecord[];
@@ -184,6 +212,9 @@ export function newRunState(feature: string, mode: Mode, maxIterations: number, 
     decisions: [],
     items: {},
     ruleUpdates: [],
+    coverage: {},
+    signals: [],
+    snapshots: {},
     events: [],
     calls: [],
     integrity: [],

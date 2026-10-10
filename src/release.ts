@@ -1,3 +1,5 @@
+import { changedFiles, completenessGaps } from './completeness.js';
+import { isTestFile } from './guardrails.js';
 import type { Finding, Severity } from './schemas.js';
 import type { RunState } from './state.js';
 import { nameOf, type TeamNames } from './team.js';
@@ -55,6 +57,17 @@ export function evaluateRelease(state: RunState, opts: { checksConfigured: boole
 
   if (state.implementation) lines.push({ label: 'Implementation', status: 'PASS', detail: `${state.codeVersion} code revision(s)` });
   else fail('Implementation', 'nothing was implemented');
+
+  // Done means done: criteria reported incomplete, planned surfaces left untouched, no change at all, open blockers.
+  const gaps = completenessGaps(state);
+  if (gaps.length) fail('Completeness', gaps.map((g) => `${g.id}: ${g.title}`).join('; '));
+  else if (state.implementation) {
+    const done = Object.keys(state.coverage ?? {}).length;
+    lines.push({ label: 'Completeness', status: 'PASS', detail: done ? `${done} item(s) reported done` : 'nothing reported open' });
+  }
+  if (state.plan?.taskType === 'bugfix' && state.diffStat?.measured && !changedFiles(state).some((f) => isTestFile(f))) {
+    lines.push({ label: 'Regression test', status: 'WARN', detail: 'bug fix without a test change — the fix is not proven by a test' });
+  }
 
   if (!opts.checksConfigured) lines.push({ label: 'Checks', status: 'SKIPPED', detail: 'none configured' });
   else if (!state.checks) fail('Checks', 'never ran');

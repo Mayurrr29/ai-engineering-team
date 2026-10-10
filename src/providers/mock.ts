@@ -27,6 +27,6 @@ export class MockProvider implements AIProvider {
     const output = typeof next === 'function' ? await (next as (r: AgentRequest) => unknown)(req) : next;
     if (output instanceof Error) throw output;
     req.onActivity?.('Read src/app.js');
-    return { output, costUsd: this.costPerCall, turns: 1 };
+    return { output, costUsd: this.costPerCall, turns: 1, sessionId: req.resumeSessionId ?? `mock-${req.role}-${this.calls.length}` };
   }
 }

@@ -39,13 +39,36 @@ export const RiskArea = z.enum([
 ]);
 export type RiskArea = z.infer<typeof RiskArea>;
 
+/**
+ * How any member talks to the rest of the team beyond their own deliverable. A role is expertise, not a limit on
+ * what someone may notice: a tester can challenge the design, a developer can ask for a security review.
+ * The orchestrator routes each signal to whoever needs it instead of broadcasting it.
+ */
+export const Signal = z.object({
+  kind: z
+    .enum(['question', 'assumption', 'concern', 'recruit', 'blocker'])
+    .describe(
+      'question: a decision only the human can make that materially changes the result · assumption: a decision you made yourself because the request left it open · concern: a problem outside your own deliverable (design, requirements, another area) · recruit: the mission needs a member who is not staffed · blocker: you cannot finish without help',
+    ),
+  to: z.enum(['lead', 'human', 'pm', 'architect', 'developer', 'qa', 'security', 'reviewer', 'team']).describe('Who needs this'),
+  summary: z.string().describe('One sentence'),
+  evidence: z.string().describe('What supports it: file:line, command output, spec reference. Empty only for questions.'),
+  member: z.enum(['', 'pm', 'architect', 'qa', 'security', 'reviewer']).describe('recruit: the member to add; otherwise empty'),
+  proposedDefault: z.string().describe('question: what the team will do if nobody answers; otherwise empty'),
+});
+export type Signal = z.infer<typeof Signal>;
+
+const signals = z.array(Signal).describe('Questions, assumptions, concerns, recruit requests or blockers for the team. Usually empty.');
+
 const perMember = <T extends z.ZodType>(t: T) =>
   z.object({ pm: t, architect: t, developer: t, qa: t, bugFixer: t, security: t, reviewer: t });
 
 export const MissionPlan = z.object({
   missionName: z.string().describe('2-6 word mission title, e.g. "Course discount coupons"'),
   summary: z.string().describe('One or two sentences: what the human asked for'),
-  taskType: z.enum(['feature', 'bugfix', 'refactor', 'ui', 'config', 'docs', 'test', 'chore']),
+  taskType: z
+    .enum(['feature', 'bugfix', 'refactor', 'ui', 'config', 'docs', 'test', 'chore', 'question', 'planning'])
+    .describe('question: the human wants an answer, not a code change · planning: a design or plan, not a code change'),
   size: z.enum(['XS', 'S', 'M', 'L', 'XL']),
   risk: z.enum(['low', 'medium', 'high']),
   riskAreas: z.array(RiskArea),
@@ -57,6 +80,9 @@ export const MissionPlan = z.object({
   rationale: z.string().describe('Two to four sentences: why this size, risk and lineup'),
   estimatedCostUsd: z.number(),
   budgetNote: z.string().describe('Empty, or a note if the budget is tight or insufficient'),
+  answer: z
+    .string()
+    .describe('question tasks: the complete answer with file:line references, when your triage already settles it; empty to hand the question to the Architect, and for every other task type'),
 });
 export type MissionPlan = z.infer<typeof MissionPlan>;
 
@@ -110,6 +136,9 @@ export const DesignOutput = z.object({
   filePlan: z.array(z.object({ path: z.string(), action: z.enum(['create', 'modify', 'delete']), purpose: z.string() })),
   testPlan: z.array(z.string()),
   risks: z.array(z.string()),
+  milestones: z
+    .array(z.object({ name: z.string(), deliverables: z.array(z.string()), acceptance: z.array(z.string()), dependsOn: z.array(z.string()) }))
+    .describe('Planning missions: ordered milestones; empty when the design is built right away'),
 });
 export type DesignOutput = z.infer<typeof DesignOutput>;
 
@@ -129,7 +158,9 @@ export const DevOutput = z.object({
   ),
   testsAdded: z.array(z.string()),
   commandsRun: z.array(CommandRun),
-  notes: z.array(z.string()).describe('Assumptions, disagreements, follow-ups, known limitations'),
+  notes: z.array(z.string()).describe('Follow-ups and known limitations for the human'),
+  rootCause: z.string().describe('Bug fixes: the root cause and the evidence that confirmed it; empty otherwise'),
+  signals,
 });
 export type DevOutput = z.infer<typeof DevOutput>;
 
@@ -163,6 +194,7 @@ export const QaOutput = z.object({
     }),
   ),
   bugs: z.array(Bug),
+  signals,
 });
 export type QaOutput = z.infer<typeof QaOutput>;
 
@@ -179,6 +211,7 @@ export const FixOutput = z.object({
   ),
   filesChanged: z.array(FileChange),
   commandsRun: z.array(CommandRun),
+  signals,
 });
 export type FixOutput = z.infer<typeof FixOutput>;
 
@@ -210,8 +243,16 @@ export const ReviewOutput = z.object({
     .describe('Security reviewer: STRIDE threats considered (full depth). Code reviewer: empty.'),
   missedEdgeCases: z.array(z.string()).describe('Edge cases nobody (PM, QA) considered'),
   lessons: z.array(z.string()).describe('Durable, project-specific lessons for future missions (may be empty)'),
+  signals,
 });
 export type ReviewOutput = z.infer<typeof ReviewOutput>;
+
+export const AnswerOutput = z.object({
+  answer: z.string().describe('The answer in Markdown: direct first, then the supporting detail'),
+  evidence: z.array(z.string()).describe('file:line references or command output that back the answer'),
+  followUps: z.array(z.string()).describe('Open points or suggested next steps; may be empty'),
+});
+export type AnswerOutput = z.infer<typeof AnswerOutput>;
 
 export const LeadDecision = z.object({
   summary: z.string().describe('One or two sentences on the situation and your call'),

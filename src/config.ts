@@ -70,8 +70,14 @@ export const Config = z.object({
        * starting another fix round (HIGH/CRITICAL and already-reported issues still block). 0 = always block.
        */
       deferNewIssuesFromRound: z.number().int().min(0).default(3),
+      /**
+       * Who fixes bugs found by QA and the checks. "auto": the developer, continuing her own session (she already
+       * knows the code, and her context is cached), with the Bug Fixer called in with fresh eyes when the team lead
+       * asks for a different approach or the session can't be resumed. "bugFixer": always the Bug Fixer.
+       */
+      fixer: z.enum(['auto', 'bugFixer']).default('auto'),
     })
-    .default({ deferNewIssuesFromRound: 3 }),
+    .default({ deferNewIssuesFromRound: 3, fixer: 'auto' }),
   rules: z
     .object({
       /** Let JARVIS add, update and remove learned rules after each mission. */

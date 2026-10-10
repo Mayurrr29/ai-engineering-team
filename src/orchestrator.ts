@@ -3,20 +3,22 @@ import path from 'node:path';
 import type { z } from 'zod';
 import { costTable, estimateMission, readStats, recordStats } from './budget.js';
 import { classifyChecks, runChecks } from './checks.js';
+import { completenessGaps, isNonCodeTask } from './completeness.js';
 import type { Config } from './config.js';
 import * as git from './git.js';
-import { diffGuardrails, isSolo, planGuardrails, type DiffMetrics, type Upgrade } from './guardrails.js';
+import { diffGuardrails, isSolo, planGuardrails, raise, type DiffMetrics, type Upgrade } from './guardrails.js';
 import { detectPacks, type PackId } from './packs.js';
 import { buildSystemPrompt, loadProfile, type PromptContext } from './playbooks.js';
 import { paths, slugify } from './paths.js';
 import * as P from './prompts.js';
 import { AgentError, type Access, type AIProvider, type TokenUsage } from './providers/types.js';
 import { blocks, evaluateRelease, renderRelease, type ReleaseDecision } from './release.js';
-import { renderChecks, renderDebrief, renderDecision, renderDesign, renderFix, renderImplementation, renderPlan, renderQa, renderReview, renderRunFlow, renderSpec, stripNumber } from './render.js';
+import { renderAnswer, renderChecks, renderDebrief, renderDecision, renderDesign, renderFix, renderImplementation, renderPlan, renderQa, renderReview, renderRunFlow, renderSpec, stripNumber } from './render.js';
 import { writeReport } from './report/html.js';
 import { applyRuleUpdates, ensureRulebook, learnedRules } from './rules.js';
 import { scanDiff } from './scans.js';
 import {
+  AnswerOutput,
   Debrief,
   DesignOutput,
   DevOutput,
@@ -30,6 +32,7 @@ import {
   type Effort,
   type Lineup,
   type Severity,
+  type Signal,
 } from './schemas.js';
 import { newRunState, RunStore, type Mode, type RunState, type Step, type WorkItem } from './state.js';
 import { MEMBERS, nameOf, type RoleId, type TeamNames } from './team.js';
@@ -68,6 +71,7 @@ const STEP_TITLES: Record<Exclude<Step, 'done'>, string> = {
   rework: 'Rework',
   release: 'Release gate',
   debrief: 'Debrief',
+  answer: 'Answer',
 };
 
 const SEVERITY_ORDER: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
@@ -145,7 +149,7 @@ export class Orchestrator {
       this.save(store);
       this.ui.update(state);
     }
-    if (!decision && state.status !== 'running') decision = evaluateRelease(state, this.gateOpts());
+    if (!decision && (state.status === 'approved' || state.status === 'rejected')) decision = evaluateRelease(state, this.gateOpts());
     const reportPath = this.save(store);
     this.ui.finish(state, decision, reportPath);
     return { state, decision, dir: store.dir, reportPath };
@@ -189,6 +193,8 @@ export class Orchestrator {
         return this.stepRework(store);
       case 'debrief':
         return this.stepDebrief(store);
+      case 'answer':
+        return this.stepAnswer(store);
     }
   }
 
@@ -225,6 +231,10 @@ export class Orchestrator {
       plan = fixedPlan(state.mode, state.feature);
     }
     state.plan = plan;
+    if (plan.taskType === 'question' || plan.taskType === 'planning') {
+      this.routeNonCode(store, plan);
+      return;
+    }
     const guarded = planGuardrails(plan);
     state.lineup = guarded.lineup;
     this.recordUpgrades(store, guarded.upgrades);
@@ -242,6 +252,55 @@ export class Orchestrator {
     }
     store.writeArtifact('plan', 'mission-plan.md', renderPlan(plan, state, this.names));
     state.next = state.lineup.pm === 'full' ? 'pm' : state.lineup.architect === 'full' ? 'design' : 'develop';
+  }
+
+  /** Questions and planning requests end with an answer or a plan: no developer, no code gate. */
+  private routeNonCode(store: RunStore, plan: MissionPlan) {
+    const { state } = store;
+    store.writeArtifact('plan', 'mission-plan.md', renderPlan(plan, state, this.names));
+    if (plan.taskType === 'question') {
+      state.lineup = { pm: 'off', architect: 'off', qa: 'off', security: 'off', reviewer: 'off' };
+      if (plan.answer.trim()) {
+        this.ui.member('lead', 'done', 'answered');
+        this.finishNonCode(store, { answer: plan.answer.trim(), evidence: [], followUps: [] });
+        return;
+      }
+      state.lineup.architect = 'full';
+      this.ui.member('lead', 'done', `question → ${this.name('architect')}`);
+      store.event('lead', 'handoff', `This is a question, not a change. ${this.name('architect')} will answer it.`, 'architect');
+      state.next = 'answer';
+      return;
+    }
+    // planning: a spec when the request is ambiguous, always a design; nothing gets built.
+    state.lineup = { pm: plan.lineup.pm, architect: 'full', qa: 'off', security: 'off', reviewer: 'off' };
+    state.effort = { ...plan.effort, ...this.config.effort };
+    this.ui.member('lead', 'done', `planning · ${state.lineup.pm === 'full' ? `${this.name('pm')} + ` : ''}${this.name('architect')}`);
+    store.event('lead', 'handoff', `Planning mission: the result is a plan, not code. ${plan.rationale}`, 'team');
+    state.next = state.lineup.pm === 'full' ? 'pm' : 'design';
+  }
+
+  private async stepAnswer(store: RunStore) {
+    const { state } = store;
+    const answer = await this.call(store, 'architect', 'answer', P.answerPrompt(state, this.env()), AnswerOutput, {
+      access: READ,
+      effort: state.plan?.effort.architect ?? 'medium',
+      detail: 'answering',
+    });
+    this.ui.member('architect', 'done', 'answered');
+    this.finishNonCode(store, answer);
+  }
+
+  private finishNonCode(store: RunStore, answer?: AnswerOutput) {
+    const { state } = store;
+    if (answer) {
+      state.answer = answer;
+      store.writeArtifact('answer', 'answer.md', renderAnswer(state.feature, answer));
+      store.event(state.calls.at(-1)?.role ?? 'lead', 'handoff', answer.answer.split('\n')[0].slice(0, 200), 'human');
+    }
+    state.status = answer ? 'answered' : 'planned';
+    recordStats(this.root, state.calls.filter((c) => c.ok).map((c) => ({ role: c.role, costUsd: c.costUsd, ms: c.ms })));
+    state.finishedAt = new Date().toISOString();
+    state.next = 'done';
   }
 
   private async stepPm(store: RunStore) {
@@ -286,15 +345,21 @@ export class Orchestrator {
     state.design = design;
     const summary = `${design.decisions.length} decisions · ${design.filePlan.length} files planned`;
     this.ui.member('architect', 'done', summary);
-    store.event('architect', 'handoff', `Design ready: ${design.approach}`, 'developer');
     store.writeArtifact('design', 'design.md', renderDesign(design));
+    if (state.plan?.taskType === 'planning') {
+      store.event('architect', 'handoff', `Plan ready: ${design.approach}`, 'human');
+      this.finishNonCode(store);
+      return;
+    }
+    store.event('architect', 'handoff', `Design ready: ${design.approach}`, 'developer');
     state.next = 'develop';
   }
 
   private async stepDevelop(store: RunStore) {
     const { state } = store;
-    const dev = await this.call(store, 'developer', 'develop', P.developPrompt(state, this.env()), DevOutput, { access: WRITE, detail: 'building' });
+    const dev = await this.call(store, 'developer', 'develop', P.developPrompt(state, this.env()), DevOutput, { access: WRITE, detail: state.plan?.taskType === 'bugfix' ? 'debugging' : 'building' });
     state.implementation = dev;
+    state.coverage = Object.fromEntries(dev.criteriaCoverage.map((c) => [c.id, { status: c.status, notes: c.notes }]));
     state.codeVersion += 1;
     store.writeArtifact('develop', 'implementation.md', renderImplementation(dev));
     const open = dev.criteriaCoverage.filter((c) => c.status !== 'DONE');
@@ -304,6 +369,7 @@ export class Orchestrator {
     if (open.length) this.ui.log('warn', `Reports ${open.length} item(s) not fully done: ${open.map((o) => o.id).join(', ')}`, 'developer');
     this.afterCodeChange(store, `implement ${slugify(state.feature)}`);
     state.next = 'checks';
+    await this.absorbSignals(store, 'developer', dev.signals);
   }
 
   private async stepChecks(store: RunStore) {
@@ -321,6 +387,14 @@ export class Orchestrator {
       store.event('system', blocking.length ? 'warning' : 'note', `Checks on revision ${state.codeVersion}: ${results.map((r) => `${r.name} ${r.passed ? '✓' : '✗'}`).join(' · ')}`, 'team');
     }
 
+    // Incomplete work goes straight back to the developer: testing and reviewing it would be wasted.
+    const gaps = this.completenessItems(state);
+    if (gaps.length) {
+      this.ui.log('warn', `not done yet: ${gaps.map((g) => g.id).join(', ')}`, 'system');
+      store.event('system', 'note', `Not done yet: ${gaps.map((g) => `${g.id} — ${g.title}`).join('; ')}`, 'developer');
+      this.route(store, [...gaps, ...this.checkItems(state)], 'completeness');
+      return;
+    }
     if (state.lineup.qa !== 'off') state.next = 'qa';
     else if (blocking.length) this.route(store, this.checkItems(state), 'qa');
     else state.next = this.afterQaStep(state);
@@ -335,7 +409,7 @@ export class Orchestrator {
       store,
       'qa',
       'qa',
-      P.qaPrompt(state, { ...this.env(), diff: this.diff(state), labDir, depth: state.lineup.qa }),
+      P.qaPrompt(state, { ...this.env(), diff: this.diff(state), delta: this.delta(state, state.qa?.codeVersion), labDir, depth: state.lineup.qa }),
       QaOutput,
       {
         access: { read: true, run: true, write: 'lab', labDir },
@@ -348,8 +422,9 @@ export class Orchestrator {
     state.qa = { ...qa, codeVersion: state.codeVersion };
     state.qaRounds.push({ round, codeVersion: state.codeVersion, status: qa.status, bugIds: qa.bugs.map((b) => b.id), bugs: qa.bugs.map((b) => ({ id: b.id, title: b.title, severity: b.severity })), scenarios: qa.scenarios.length });
     store.writeArtifact('qa', `qa-round${round}.md`, renderQa(qa, round));
+    await this.absorbSignals(store, 'qa', qa.signals);
 
-    const items = this.qaItems(state);
+    const items = [...this.qaItems(state), ...this.completenessItems(state)];
     if (items.length) {
       this.ui.member('qa', 'done', `${qa.scenarios.length} scenarios · ${items.length} issue(s): ${items.map((i) => `${i.id} ${i.severity}`).join(', ')}`);
       store.event('qa', 'handoff', `Found ${items.map((i) => `${i.id} (${i.severity}) ${i.title}`).join('; ')}`, 'bugFixer');
@@ -366,23 +441,49 @@ export class Orchestrator {
   private async stepFix(store: RunStore) {
     const { state } = store;
     const items = state.todo;
-    const fix = await this.call(store, 'bugFixer', 'fix', P.fixPrompt(state, this.env()), FixOutput, { access: WRITE, detail: `fixing ${items.map((t) => t.id).join(', ')}` });
-    state.fixes.push({ ...fix, by: 'bugFixer', round: state.iteration });
+    const detail = `fixing ${items.map((t) => t.id).join(', ')}`;
+    const session = this.fixerSession(state);
+    let by: 'developer' | 'bugFixer' = session ? 'developer' : 'bugFixer';
+    let fix: FixOutput;
+    try {
+      fix = session
+        ? await this.call(store, 'developer', 'fix', P.fixPrompt(state, { ...this.env(), inSession: true, delta: this.delta(state, session.codeVersion) }), FixOutput, { access: WRITE, detail, resumeSessionId: session.id })
+        : await this.call(store, 'bugFixer', 'fix', P.fixPrompt(state, this.env()), FixOutput, { access: WRITE, detail });
+    } catch (err) {
+      if (!session || err instanceof BudgetExhausted || (err instanceof AgentError && err.kind === 'budget')) throw err;
+      this.ui.log('warn', `${this.name('developer')}'s session could not continue (${(err as Error).message.slice(0, 80)}) — ${this.name('bugFixer')} takes over`, 'system');
+      delete state.sessions?.developer;
+      by = 'bugFixer';
+      fix = await this.call(store, 'bugFixer', 'fix', P.fixPrompt(state, this.env()), FixOutput, { access: WRITE, detail });
+    }
+    state.fixes.push({ ...fix, by, round: state.iteration });
     for (const f of fix.fixes) {
       const h = this.history(state, f.id);
       if (f.status === 'FIXED') h.fixClaims += 1;
       else h.disputes += 1;
+      if (f.status === 'FIXED' && state.coverage?.[f.id]) state.coverage[f.id] = { status: 'DONE', notes: f.change };
     }
     state.codeVersion += 1;
     store.writeArtifact('fix', `fix-round${state.iteration}.md`, renderFix(fix, `Bug fixes — round ${state.iteration}`, items));
     const fixed = fix.fixes.filter((f) => f.status === 'FIXED').map((f) => f.id);
     const disputed = fix.fixes.filter((f) => f.status !== 'FIXED');
-    this.ui.member('bugFixer', 'done', `${fixed.length} fixed${disputed.length ? ` · ${disputed.length} disputed` : ''}`);
-    store.event('bugFixer', 'handoff', `${fixed.length ? `Fixed ${fixed.join(', ')}. ` : ''}${disputed.map((d) => `${d.id}: ${d.status} — ${d.rootCause}`).join(' ')}`.trim(), 'qa');
-    for (const d of disputed) this.ui.log('warn', `${d.id} ${d.status.toLowerCase().replace(/_/g, ' ')}: ${d.rootCause}`, 'bugFixer');
+    this.ui.member(by, 'done', `${fixed.length} fixed${disputed.length ? ` · ${disputed.length} disputed` : ''}`);
+    store.event(by, 'handoff', `${fixed.length ? `Fixed ${fixed.join(', ')}. ` : ''}${disputed.map((d) => `${d.id}: ${d.status} — ${d.rootCause}`).join(' ')}`.trim(), 'qa');
+    for (const d of disputed) this.ui.log('warn', `${d.id} ${d.status.toLowerCase().replace(/_/g, ' ')}: ${d.rootCause}`, by);
     this.afterCodeChange(store, `fix ${items.map((t) => t.id).join(', ')}`);
     state.todo = [];
     state.next = 'checks';
+    await this.absorbSignals(store, by, fix.signals);
+  }
+
+  /**
+   * The developer fixes QA's findings in her own session: she knows the code and her context is cached. The Bug
+   * Fixer comes in with fresh eyes when the team lead asked for a different approach, or when there's no session.
+   */
+  private fixerSession(state: RunState): { id: string; codeVersion: number } | undefined {
+    if (this.config.loop.fixer !== 'auto') return undefined;
+    if (state.todo.some((t) => t.guidance)) return undefined;
+    return state.sessions?.developer;
   }
 
   private async stepArbitrate(store: RunStore) {
@@ -401,6 +502,8 @@ export class Orchestrator {
     const remaining: WorkItem[] = [];
     for (const item of state.todo) {
       this.history(state, item.id).arbitrated = true;
+      const blocker = state.signals?.find((b) => b.id === item.id);
+      if (blocker) blocker.resolved = true;
       const ruling = decision.rulings.find((r) => r.id === item.id) ?? { id: item.id, ruling: 'fix' as const, reason: 'No ruling given.', guidance: '' };
       let verdict = ruling.ruling;
       if (verdict === 'waive' && (item.severity === 'HIGH' || item.severity === 'CRITICAL')) {
@@ -439,7 +542,7 @@ export class Orchestrator {
     const from = state.todoFrom ?? 'qa';
     if (!remaining.length) {
       state.todo = [];
-      state.next = from === 'qa' ? this.afterQaStep(state) : 'release';
+      state.next = this.nextAfterClearing(state, from);
       return;
     }
     this.loopBack(store, remaining, from === 'qa' ? 'fix' : 'rework');
@@ -450,18 +553,20 @@ export class Orchestrator {
     state.reviewRounds = (state.reviewRounds ?? 0) + 1;
     const diff = this.diff(state);
     const jobs: Array<Promise<{ role: 'security' | 'reviewer'; review: ReviewOutput }>> = [];
-    if (state.lineup.security !== 'off') {
+    // A reviewer whose approval already covers the current code isn't asked again (e.g. a teammate joined later).
+    const stands = (v?: { codeVersion: number; status: string }) => v?.codeVersion === state.codeVersion && v.status === 'APPROVED';
+    if (state.lineup.security !== 'off' && !stands(state.security)) {
       jobs.push(
-        this.call(store, 'security', 'review', P.securityPrompt(state, { ...this.env(), diff, leads: state.scans, depth: state.lineup.security }), ReviewOutput, {
+        this.call(store, 'security', 'review', P.securityPrompt(state, { ...this.env(), diff, delta: this.delta(state, state.security?.codeVersion), leads: state.scans, depth: state.lineup.security }), ReviewOutput, {
           access: READ,
           detail: 'attacking the change',
           readOnlyRepo: true,
         }).then((review) => ({ role: 'security' as const, review })),
       );
     }
-    if (state.lineup.reviewer !== 'off') {
+    if (state.lineup.reviewer !== 'off' && !stands(state.review)) {
       jobs.push(
-        this.call(store, 'reviewer', 'review', P.reviewPrompt(state, { ...this.env(), diff, leads: state.scans, depth: state.lineup.reviewer }), ReviewOutput, {
+        this.call(store, 'reviewer', 'review', P.reviewPrompt(state, { ...this.env(), diff, delta: this.delta(state, state.review?.codeVersion), leads: state.scans, depth: state.lineup.reviewer }), ReviewOutput, {
           access: READ,
           detail: 'reviewing the diff',
           readOnlyRepo: true,
@@ -502,10 +607,12 @@ export class Orchestrator {
       store.event(role, 'handoff', status === 'APPROVED' ? `Approved. ${review.summary}` : `Rejected: ${open.map((f) => `${f.id} (${f.severity}) ${f.description.split('\n')[0]}`).join('; ')}`, status === 'APPROVED' ? 'gate' : 'developer');
     }
     if (failed) throw failed.reason;
+    for (const s of settled) if (s.status === 'fulfilled') await this.absorbSignals(store, s.value.role, s.value.review.signals);
+    items.push(...this.completenessItems(state));
 
     if (!items.length) {
       state.todo = [];
-      state.next = 'release';
+      state.next = this.pendingStage(state);
       return;
     }
     this.route(store, sortBySeverity(items), 'review');
@@ -514,14 +621,27 @@ export class Orchestrator {
   private async stepRework(store: RunStore) {
     const { state } = store;
     const items = state.todo;
-    const dev = await this.call(store, 'developer', 'rework', P.reworkPrompt(state, this.env()), DevOutput, { access: WRITE, detail: `addressing ${items.map((t) => t.id).join(', ')}` });
-    state.fixes.push({ summary: dev.summary, fixes: [], filesChanged: dev.filesChanged, commandsRun: dev.commandsRun, by: 'developer', round: state.iteration });
+    const detail = `addressing ${items.map((t) => t.id).join(', ')}`;
+    const session = state.sessions?.developer;
+    let dev: DevOutput;
+    try {
+      dev = session
+        ? await this.call(store, 'developer', 'rework', P.reworkPrompt(state, { ...this.env(), inSession: true, delta: this.delta(state, session.codeVersion) }), DevOutput, { access: WRITE, detail, resumeSessionId: session.id })
+        : await this.call(store, 'developer', 'rework', P.reworkPrompt(state, this.env()), DevOutput, { access: WRITE, detail });
+    } catch (err) {
+      if (!session || err instanceof BudgetExhausted || (err instanceof AgentError && err.kind === 'budget')) throw err;
+      this.ui.log('warn', `${this.name('developer')}'s session could not continue (${(err as Error).message.slice(0, 80)}) — starting fresh`, 'system');
+      delete state.sessions?.developer;
+      dev = await this.call(store, 'developer', 'rework', P.reworkPrompt(state, this.env()), DevOutput, { access: WRITE, detail });
+    }
+    state.fixes.push({ summary: dev.summary, fixes: [], filesChanged: dev.filesChanged, commandsRun: dev.commandsRun, signals: dev.signals, by: 'developer', round: state.iteration });
     for (const item of items) {
       const cov = dev.criteriaCoverage.find((c) => c.id === item.id);
       const h = this.history(state, item.id);
       if (!cov || cov.status === 'DONE') h.fixClaims += 1;
       else h.disputes += 1;
     }
+    for (const c of dev.criteriaCoverage) if (state.coverage?.[c.id]) state.coverage[c.id] = { status: c.status, notes: c.notes };
     state.codeVersion += 1;
     store.writeArtifact('rework', `rework-round${state.iteration}.md`, renderImplementation(dev, `Rework — round ${state.iteration} (${items.map((t) => t.id).join(', ')})`));
     this.ui.member('developer', 'done', `reworked · ${dev.filesChanged.length} file(s)`);
@@ -529,6 +649,7 @@ export class Orchestrator {
     this.afterCodeChange(store, `address ${items.map((t) => t.id).join(', ')}`);
     state.todo = [];
     state.next = 'checks';
+    await this.absorbSignals(store, 'developer', dev.signals);
   }
 
   private release(store: RunStore): ReleaseDecision {
@@ -547,7 +668,10 @@ export class Orchestrator {
     const { state } = store;
     const decision = evaluateRelease(state, this.gateOpts());
     let debrief: Debrief;
-    const lean = isSolo(state.lineup) || state.mode === 'quick';
+    // An AI-written debrief pays off when there is something to learn or explain; otherwise the facts are enough.
+    const lessons = [...(state.security?.lessons ?? []), ...(state.review?.lessons ?? [])].length;
+    const eventful = state.iteration > 0 || state.waivers.length > 0 || !decision.approved || lessons > 0 || state.plan?.size === 'L' || state.plan?.size === 'XL';
+    const lean = isSolo(state.lineup) || state.mode === 'quick' || !eventful;
     if (lean) {
       debrief = basicDebrief(state, decision, this.names);
     } else {
@@ -595,14 +719,100 @@ export class Orchestrator {
     return state.lineup.security !== 'off' || state.lineup.reviewer !== 'off' ? 'review' : 'release';
   }
 
+  /** Where the mission continues once the current batch of items is resolved or waived without new code. */
+  private nextAfterClearing(state: RunState, from: 'qa' | 'review' | 'completeness'): Step {
+    if (from === 'qa') return this.afterQaStep(state);
+    if (from === 'review') return this.pendingStage(state);
+    return state.lineup.qa !== 'off' ? 'qa' : this.afterQaStep(state);
+  }
+
+  /** The first staffed stage that hasn't judged the current code yet (members can join mid-mission), else the gate. */
+  private pendingStage(state: RunState): Step {
+    const fresh = (v?: { codeVersion: number }) => v?.codeVersion === state.codeVersion;
+    if (state.lineup.qa !== 'off' && !fresh(state.qa)) return 'qa';
+    if ((state.lineup.security !== 'off' && !fresh(state.security)) || (state.lineup.reviewer !== 'off' && !fresh(state.review))) return 'review';
+    return 'release';
+  }
+
+  private completenessItems(state: RunState): WorkItem[] {
+    return completenessGaps(state).map((g) => ({ id: g.id, source: 'completeness' as const, severity: g.severity, title: g.title, details: g.details }));
+  }
+
+  /**
+   * Routes what members raised beyond their own deliverable. Recruit requests add members (never remove),
+   * questions for the human are asked once, blockers go to the team lead, and assumptions and concerns land
+   * in the ledger, from which each member gets only the entries meant for them.
+   */
+  private async absorbSignals(store: RunStore, from: RoleId, signals: Signal[] = []) {
+    const { state } = store;
+    state.signals ??= [];
+    for (const signal of signals) {
+      const summary = signal.summary.trim();
+      if (!summary) continue;
+      const key = `${signal.kind}:${summary.toLowerCase()}`;
+      if (state.signals.some((s) => `${s.kind}:${s.summary.trim().toLowerCase()}` === key)) continue;
+      const id = `${signal.kind === 'blocker' ? 'BLOCK' : 'SIG'}-${state.signals.length + 1}`;
+      state.signals.push({ ...signal, summary, id, from, at: new Date().toISOString(), codeVersion: state.codeVersion });
+      const who = this.name(from);
+
+      if (signal.kind === 'recruit' && signal.member) {
+        const member = signal.member;
+        const upgrades: Upgrade[] = [];
+        raise(state.lineup, member, 'light', `requested by ${who}: ${summary}`, upgrades);
+        if (upgrades.length) {
+          this.recordUpgrades(store, upgrades);
+          // Someone joining after the build reviews the current code; make sure the flow reaches them.
+          if (state.next === 'release' && (member === 'security' || member === 'reviewer')) state.next = 'review';
+          if (state.next === 'release' && member === 'qa') state.next = 'qa';
+        }
+        continue;
+      }
+      if (signal.kind === 'question' && signal.to === 'human') {
+        await this.askHuman(store, id, summary, signal.proposedDefault, from);
+        continue;
+      }
+      if (signal.kind === 'blocker') {
+        store.event(from, 'warning', `Blocker (${id}): ${summary}`, 'lead');
+        this.ui.log('warn', `${who} is blocked: ${summary}`, from);
+        continue;
+      }
+      store.event(from, 'note', `${signal.kind === 'assumption' ? 'Assumption' : 'Concern'} (${id}): ${summary}`, signal.to === 'human' || signal.to === 'team' ? 'team' : signal.to);
+      if (signal.kind === 'concern') this.ui.log('event', `${who} → ${signal.to}: ${summary}`, from);
+    }
+  }
+
+  /** Asks the human one question (once per mission). An answer that differs from the default sends the change back for rework. */
+  private async askHuman(store: RunStore, id: string, question: string, proposedDefault: string, from: RoleId) {
+    const { state } = store;
+    if (state.answers.some((a) => a.question.trim().toLowerCase() === question.toLowerCase())) return;
+    store.event(from, 'question', `${id}: ${question} (default: ${proposedDefault || 'none'})`, 'human');
+    let answered: string | undefined;
+    if (this.opts.ask) {
+      this.ui.suspend();
+      try {
+        answered = (await this.opts.ask(`${id} (${this.name(from)}): ${question}`, proposedDefault))?.trim();
+      } finally {
+        this.ui.resume();
+      }
+    }
+    const differs = !!answered && answered.toLowerCase() !== proposedDefault.trim().toLowerCase();
+    state.answers.push({ id, question, answer: answered || proposedDefault, source: answered ? 'user' : 'default' });
+    store.event('human', 'answer', `${id}: ${answered || `(default) ${proposedDefault}`}`, from);
+    if (differs && state.implementation && !isNonCodeTask(state)) {
+      // The work so far assumed the default; the human decided otherwise. It becomes an open item like any other.
+      state.coverage = { ...state.coverage, [id]: { status: 'NOT_DONE', notes: `The team assumed "${proposedDefault}"; the human decided: "${answered}". Apply that decision.` } };
+      store.event('system', 'note', `${id}: the human's answer changes the plan — back to ${this.name('developer')}.`, 'developer');
+    }
+  }
+
   /** Sends items to the fixer/developer, or to the team lead first when the team is stuck. */
-  private route(store: RunStore, items: WorkItem[], from: 'qa' | 'review') {
+  private route(store: RunStore, items: WorkItem[], from: 'qa' | 'review' | 'completeness') {
     const { state } = store;
     // Late rounds verify fixes; brand-new minor issues found there become follow-ups instead of endless fix rounds.
-    const round = from === 'qa' ? state.qaRounds.length : (state.reviewRounds ?? 1);
+    const round = from === 'qa' ? state.qaRounds.length : from === 'review' ? (state.reviewRounds ?? 1) : 0;
     const deferFrom = this.config.loop.deferNewIssuesFromRound;
     if (deferFrom > 0 && round >= deferFrom) {
-      const deferred = items.filter((i) => i.source !== 'checks' && (i.severity === 'MEDIUM' || i.severity === 'LOW') && !state.items[i.id]);
+      const deferred = items.filter((i) => i.source !== 'checks' && i.source !== 'completeness' && (i.severity === 'MEDIUM' || i.severity === 'LOW') && !state.items[i.id]);
       if (deferred.length) {
         for (const d of deferred) {
           state.waivers.push({ id: d.id, severity: d.severity, title: d.title, reason: `New ${d.severity} issue found in round ${round}; kept as a follow-up instead of another fix round.`, by: 'policy' });
@@ -612,7 +822,7 @@ export class Orchestrator {
         items = items.filter((i) => !deferred.includes(i));
         if (!items.length) {
           state.todo = [];
-          state.next = from === 'qa' ? this.afterQaStep(state) : 'release';
+          state.next = this.nextAfterClearing(state, from);
           return;
         }
       }
@@ -621,7 +831,8 @@ export class Orchestrator {
     state.todoFrom = from;
     const stuck = items.filter((i) => {
       const h = state.items[i.id];
-      return !h.arbitrated && ((h.seen >= 2 && h.fixClaims >= 1) || h.disputes >= 1);
+      const blocker = state.signals?.some((b) => b.id === i.id && b.kind === 'blocker');
+      return !h.arbitrated && ((h.seen >= 2 && h.fixClaims >= 1) || h.disputes >= 1 || blocker);
     });
     if (stuck.length) {
       state.todo = sortBySeverity(items);
@@ -689,6 +900,10 @@ export class Orchestrator {
   private afterCodeChange(store: RunStore, message: string) {
     const { state } = store;
     this.commit(store, `ai-team: ${message}`.slice(0, 200));
+    if (state.baseCommit) {
+      const snapshot = git.snapshotTree(this.root);
+      if (snapshot) (state.snapshots ??= {})[state.codeVersion] = snapshot;
+    }
     const diff = this.diff(state);
     const metrics: DiffMetrics = diff
       ? { files: diff.files, changedLines: diff.changedLines, measured: true }
@@ -727,6 +942,19 @@ export class Orchestrator {
     return diff;
   }
 
+  /** What changed since a member last judged the code (undefined on their first look). */
+  private delta(state: RunState, judgedVersion: number | undefined): P.DeltaDiff | undefined {
+    if (judgedVersion === undefined || judgedVersion === state.codeVersion) return undefined;
+    const from = state.snapshots?.[judgedVersion];
+    const to = state.snapshots?.[state.codeVersion];
+    if (!from || !to) return undefined;
+    try {
+      return { fromVersion: judgedVersion, ...git.diffBetween(this.root, from, to) };
+    } catch {
+      return undefined;
+    }
+  }
+
   // ── Agent calls ──────────────────────────────────────────────────────────
 
   private env(): P.PromptEnv {
@@ -739,7 +967,7 @@ export class Orchestrator {
     step: Step,
     prompt: string,
     schema: z.ZodType<T>,
-    opts: { access: Access; effort?: Effort; maxTurns?: number; detail?: string; readOnlyRepo?: boolean },
+    opts: { access: Access; effort?: Effort; maxTurns?: number; detail?: string; readOnlyRepo?: boolean; resumeSessionId?: string },
   ): Promise<T> {
     const { state } = store;
     const { config, provider } = this.opts;
@@ -750,7 +978,7 @@ export class Orchestrator {
       maxBudgetUsd = Math.min(maxBudgetUsd ?? Infinity, remaining);
     }
     const effort = opts.effort ?? state.effort[role];
-    const before = opts.readOnlyRepo ? git.treeFingerprint(this.root) : undefined;
+    const before = opts.readOnlyRepo && state.baseCommit ? git.snapshotTree(this.root) : undefined;
     this.ui.member(role, 'working', opts.detail);
     const started = Date.now();
     const record = (ok: boolean, costUsd: number, turns: number, tokens?: TokenUsage) => {
@@ -773,6 +1001,7 @@ export class Orchestrator {
         maxTurns: opts.maxTurns ?? config.maxTurnsPerAgent,
         maxBudgetUsd: Number.isFinite(maxBudgetUsd) ? maxBudgetUsd : undefined,
         bypassPermissions: config.permissions === 'bypass',
+        resumeSessionId: opts.resumeSessionId,
         onActivity: (line) => this.ui.activity(role, line),
       });
     } catch (err) {
@@ -781,18 +1010,42 @@ export class Orchestrator {
       throw err;
     }
     record(true, result.costUsd, result.turns, result.tokens);
-    if (before !== undefined && git.treeFingerprint(this.root) !== before) {
-      const note = `${this.name(role)} (read-only) changed files in the repository`;
-      state.integrity.push(note);
-      store.event('gate', 'warning', note, 'team');
-      this.ui.log('warn', note, 'gate');
-    }
+    // Writers' sessions can be continued later (rework, fixes); their code revision is set once the change is counted.
+    if (result.sessionId && opts.access.write === 'repo') (state.sessions ??= {})[role] = { id: result.sessionId, codeVersion: state.codeVersion + 1 };
+    if (before) this.undoStrayEdits(store, role, before);
     const parsed = schema.safeParse(result.output);
     if (!parsed.success) {
       this.ui.member(role, 'failed', 'invalid output');
       throw new AgentError(`${this.name(role)} returned output that does not match the ${MEMBERS[role].title} contract: ${parsed.error.message}`);
     }
     return parsed.data;
+  }
+
+  /**
+   * Read-only members can still reach the shell (QA needs it to run tests), so the tool hook alone can't stop
+   * every write. After their call, anything they changed in the repository is put back exactly as it was.
+   */
+  private undoStrayEdits(store: RunStore, role: RoleId, before: string) {
+    const { state } = store;
+    const after = git.snapshotTree(this.root);
+    if (!after || after === before) return;
+    let changes: git.TreeChange[] = [];
+    try {
+      changes = git.changedBetween(this.root, before, after);
+      git.restoreFromSnapshot(this.root, before, changes);
+    } catch (err) {
+      const note = `${this.name(role)} (read-only) changed files in the repository and they could not be restored: ${(err as Error).message.split('\n')[0]}`;
+      state.integrity.push(note);
+      store.event('gate', 'warning', note, 'team');
+      this.ui.log('warn', note, 'gate');
+      return;
+    }
+    if (!changes.length) return;
+    const list = changes.map((c) => `${c.path} (${c.status})`).join(', ');
+    const note = `${this.name(role)} (read-only) changed ${changes.length} file(s) in the repository; restored: ${list}`;
+    state.integrity.push(note);
+    store.event('gate', 'guardrail', note, 'team');
+    this.ui.log('warn', note, 'gate');
   }
 
   private staffedRoles(state: RunState): RoleId[] {
@@ -881,6 +1134,7 @@ export function fixedPlan(mode: Mode, feature: string): MissionPlan {
     rationale: full ? 'Fixed "full" mode: every member at full depth.' : 'Fixed "quick" mode: Developer, light QA and a light code review.',
     estimatedCostUsd: 0,
     budgetNote: '',
+    answer: '',
   };
 }
 

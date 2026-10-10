@@ -1,5 +1,5 @@
 import type { CheckResult } from './checks.js';
-import type { Debrief, DesignOutput, DevOutput, FixOutput, LeadDecision, MissionPlan, PmOutput, QaOutput, ReviewOutput } from './schemas.js';
+import type { AnswerOutput, Debrief, DesignOutput, DevOutput, FixOutput, LeadDecision, MissionPlan, PmOutput, QaOutput, ReviewOutput } from './schemas.js';
 import type { Answer, RunState, WorkItem } from './state.js';
 import { MEMBERS, nameOf, type TeamNames } from './team.js';
 
@@ -92,6 +92,11 @@ export function renderDesign(d: DesignOutput, opts: { diagrams?: boolean } = {})
     `## File plan\n\n${list(d.filePlan.map((f) => `\`${f.path}\` (${f.action}) — ${f.purpose}`))}`,
     `## Test plan\n\n${list(d.testPlan)}`,
     `## Risks\n\n${list(d.risks)}`,
+    d.milestones?.length
+      ? `## Milestones\n\n${d.milestones
+          .map((m, i) => `### ${i + 1}. ${m.name}${m.dependsOn.length ? ` _(after ${m.dependsOn.join(', ')})_` : ''}\n\n**Deliverables**\n${list(m.deliverables)}\n\n**Done when**\n${list(m.acceptance)}`)
+          .join('\n\n')}`
+      : '',
   ];
   return out.filter(Boolean).join('\n\n') + '\n';
 }
@@ -100,12 +105,28 @@ export function renderImplementation(dev: DevOutput, title = 'Implementation'): 
   return [
     `# ${title}`,
     dev.summary,
+    dev.rootCause ? `## Root cause\n\n${dev.rootCause}` : '',
     `## Files changed\n\n${list(dev.filesChanged.map((f) => `\`${f.path}\` — ${f.change}`))}`,
     `## Coverage\n\n${dev.criteriaCoverage.length ? `| Item | Status | Tests | Notes |\n|---|---|---|---|\n${dev.criteriaCoverage.map((c) => `| ${c.id} | ${c.status} | ${cell(c.tests.join(', '))} | ${cell(c.notes)} |`).join('\n')}` : '_None._'}`,
     `## Tests added\n\n${list(dev.testsAdded)}`,
     `## Commands run\n\n${list(dev.commandsRun.map((c) => `\`${c.command}\` → ${c.result}`))}`,
     `## Notes\n\n${list(dev.notes)}`,
-  ].join('\n\n') + '\n';
+    dev.signals?.length ? `## Raised with the team\n\n${list(dev.signals.map((s) => `**${s.kind}** → ${s.to}: ${s.summary}${s.evidence ? ` (${s.evidence})` : ''}`))}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n') + '\n';
+}
+
+export function renderAnswer(question: string, a: AnswerOutput): string {
+  return [
+    `# Answer`,
+    `> ${question.replace(/\n/g, '\n> ')}`,
+    a.answer,
+    a.evidence.length ? `## Evidence\n\n${list(a.evidence)}` : '',
+    a.followUps.length ? `## Follow-ups\n\n${list(a.followUps)}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n') + '\n';
 }
 
 export function renderChecks(results: CheckResult[], opts: { title?: string; preexisting?: string[] } = {}): string {

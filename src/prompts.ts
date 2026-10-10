@@ -13,6 +13,14 @@ export interface PromptEnv {
   names: TeamNames;
 }
 
+/** The change since a member last judged the code. */
+export interface DeltaDiff {
+  fromVersion: number;
+  stat: string;
+  patch: string;
+  truncated: boolean;
+}
+
 function brief(state: RunState, role: RoleId, env: PromptEnv): string {
   const text = state.plan?.briefs[role as Exclude<RoleId, 'lead'>]?.trim();
   return text ? section(`Brief from ${nameOf('lead', env.names)}`, text) : '';
@@ -44,7 +52,7 @@ export function reportedFiles(state: RunState): string[] {
   return [...files];
 }
 
-function changes(state: RunState, diff?: DiffSnapshot): string {
+function changes(state: RunState, diff?: DiffSnapshot, delta?: DeltaDiff): string {
   const files = reportedFiles(state);
   const parts = [
     `Files reported as changed (the list may be incomplete — the diff below is the source of truth):\n${files.length ? files.map((f) => `- ${f}`).join('\n') : '- (none reported)'}`,
@@ -54,8 +62,15 @@ function changes(state: RunState, diff?: DiffSnapshot): string {
   if (diff) {
     const caveat = state.startedDirty ? ' It may also include changes that were already uncommitted before the mission started.' : '';
     parts.push(`### Diff since the mission started (computed by the orchestrator)${caveat}\n\n\`\`\`\n${diff.stat || '(no tracked changes)'}\n\`\`\``);
-    if (diff.untracked.length) parts.push(`New files (read them in full):\n${diff.untracked.map((f) => `- ${f}`).join('\n')}`);
-    if (diff.patch) parts.push(`\`\`\`diff\n${diff.patch}\n\`\`\`${diff.truncated ? '\n(diff truncated — read the remaining changed files directly)' : ''}`);
+    if (diff.untracked.length) parts.push(`New files:\n${diff.untracked.map((f) => `- ${f}`).join('\n')}`);
+    if (delta) {
+      // Re-review: the member already judged everything up to delta.fromVersion. Send only what changed since.
+      parts.push(
+        `### What changed since you last looked (revision ${delta.fromVersion} → ${state.codeVersion})\n\nYou already reviewed the rest of the change. Focus on this delta and on how it interacts with the code around it; read any file directly if you need more context.\n\n\`\`\`\n${delta.stat || '(no changes)'}\n\`\`\`${delta.patch ? `\n\n\`\`\`diff\n${delta.patch}\n\`\`\`${delta.truncated ? '\n(delta truncated — read the changed files directly)' : ''}` : ''}`,
+      );
+    } else if (diff.patch) {
+      parts.push(`\`\`\`diff\n${diff.patch}\n\`\`\`${diff.truncated ? '\n(diff truncated — read the remaining changed files directly)' : ''}`);
+    }
   }
   return section('What changed', parts.join('\n\n'));
 }
@@ -83,6 +98,28 @@ function guidanceFromLead(state: RunState, env: PromptEnv): string {
     `Guidance from ${nameOf('lead', env.names)} (the previous approach didn't work — follow this)`,
     withGuidance.map((t) => `- **${t.id}**: ${t.guidance}`).join('\n'),
   );
+}
+
+const DOWNSTREAM: RoleId[] = ['qa', 'security', 'reviewer', 'bugFixer', 'developer', 'lead'];
+
+/**
+ * Only the ledger entries meant for this member: signals addressed to them or the whole team, plus the decisions
+ * (human answers and teammates' assumptions) that anyone checking the work must know so they don't flag them as bugs.
+ */
+export function teamNotes(state: RunState, role: RoleId, env: PromptEnv): string {
+  const lines: string[] = [];
+  for (const a of state.answers.filter((a) => !state.spec?.openQuestions.some((q) => q.id === a.id))) {
+    lines.push(`- **Decision ${a.id}** — ${a.question} → ${a.answer} (${a.source === 'user' ? 'answered by the human' : 'default, nobody answered'})`);
+  }
+  for (const s of state.signals ?? []) {
+    if (s.from === role || s.kind === 'question' || s.kind === 'recruit') continue;
+    const forMe = s.to === role || s.to === 'team' || (s.kind === 'assumption' && DOWNSTREAM.includes(role)) || (s.kind === 'blocker' && role === 'lead');
+    if (!forMe) continue;
+    const label = s.kind === 'assumption' ? 'Assumption' : s.kind === 'blocker' ? 'Blocker' : 'Concern';
+    lines.push(`- **${label} from ${nameOf(s.from, env.names)}** (${s.id}): ${s.summary}${s.evidence ? ` — evidence: ${s.evidence}` : ''}`);
+  }
+  if (!lines.length) return '';
+  return section('Notes from the team (decisions already made and points raised for you)', lines.slice(-12).join('\n'));
 }
 
 function workItems(items: WorkItem[]): string {
@@ -123,7 +160,28 @@ export function pmPrompt(state: RunState, env: PromptEnv): string {
 }
 
 export function designPrompt(state: RunState, env: PromptEnv): string {
-  return [requirements(state), task('Design the solution for this mission and write the build plan.', brief(state, 'architect', env))].join('\n\n');
+  const planning = state.plan?.taskType === 'planning';
+  return [
+    requirements(state),
+    task(
+      planning
+        ? 'Mode: planning. The human wants a plan, not code — nothing will be built in this mission. Study the codebase, then write the design: decisions with trade-offs, data model and API changes, risks, and ordered `milestones` (each with deliverables, acceptance criteria and dependencies) that a team could execute one by one.'
+        : 'Design the solution for this mission and write the build plan.',
+      brief(state, 'architect', env),
+    ),
+  ].join('\n\n');
+}
+
+export function answerPrompt(state: RunState, env: PromptEnv): string {
+  return [
+    section('Question from the human', state.feature),
+    state.plan?.briefs.architect ? section(`Note from ${nameOf('lead', env.names)}`, state.plan.briefs.architect) : '',
+    task(
+      'Mode: answering. The human asked a question; nothing will be changed. Investigate the repository until you can answer with evidence, then answer directly: the answer first, then the supporting detail with file:line references. Say plainly what you could not verify.',
+    ),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 export function developPrompt(state: RunState, env: PromptEnv): string {
@@ -132,8 +190,13 @@ export function developPrompt(state: RunState, env: PromptEnv): string {
     requirements(state),
     design(state),
     preexisting.length ? section('Already failing before this mission', `${preexisting.join(', ')} — not your job unless your change is related.`) : '',
+    state.plan?.keyFiles.length ? section(`Where to start (${nameOf('lead', env.names)} already looked)`, state.plan.keyFiles.map((f) => `- \`${f}\``).join('\n')) : '',
+    surfacesNote(state),
+    teamNotes(state, 'developer', env),
     task(
-      'Implement this mission in the repository: every acceptance criterion, the listed edge and error cases, and tests that prove them.',
+      state.plan?.taskType === 'bugfix'
+        ? 'Mode: debugging. Fix the reported problem at its root cause. Reproduce it first with a failing test, confirm the cause with evidence before changing code, then fix it, make the reproduction pass and check for the same mistake nearby. Report the root cause in `rootCause` and use criteria ids AC-1… for what the fix must achieve.'
+        : 'Implement this mission in the repository: every acceptance criterion, the listed edge and error cases, and tests that prove them. If there is no separate spec, write the acceptance criteria you derived as AC-1, AC-2… in `criteriaCoverage`.',
       brief(state, 'developer', env),
     ),
   ]
@@ -141,8 +204,17 @@ export function developPrompt(state: RunState, env: PromptEnv): string {
     .join('\n\n');
 }
 
-export function qaPrompt(state: RunState, env: PromptEnv & { diff?: DiffSnapshot; labDir: string; depth: Depth }): string {
-  const parts = [requirements(state), design(state), changes(state, env.diff), checksSection(state)];
+function surfacesNote(state: RunState): string {
+  const surfaces = state.plan?.surfaces ?? [];
+  if (!surfaces.length) return '';
+  return section(
+    'Parts of the system this request affects',
+    `${surfaces.join(', ')}. Every listed part is part of "done" — the orchestrator checks the change against this list.${surfaces.includes('frontend') ? ' For the frontend that means the user-facing screens and their loading, empty and error states, not just the API behind them.' : ''}`,
+  );
+}
+
+export function qaPrompt(state: RunState, env: PromptEnv & { diff?: DiffSnapshot; delta?: DeltaDiff; labDir: string; depth: Depth }): string {
+  const parts = [requirements(state), design(state), changes(state, env.diff, env.delta), checksSection(state), teamNotes(state, 'qa', env)];
   if (state.qa?.bugs.length) {
     parts.push(
       section(
@@ -165,12 +237,39 @@ export function qaPrompt(state: RunState, env: PromptEnv & { diff?: DiffSnapshot
   return parts.filter(Boolean).join('\n\n');
 }
 
-export function fixPrompt(state: RunState, env: PromptEnv): string {
+/** Continuing a member's own session: they already have the spec, the design and their change in context. */
+interface SessionEnv {
+  inSession?: boolean;
+  delta?: DeltaDiff;
+}
+
+function sinceYourLastTurn(state: RunState, delta?: DeltaDiff): string {
+  if (!delta) return '';
+  return section(
+    `The code changed since your last turn (revision ${delta.fromVersion} → ${state.codeVersion}, by teammates)`,
+    `\`\`\`\n${delta.stat || '(no changes)'}\n\`\`\`${delta.patch ? `\n\n\`\`\`diff\n${delta.patch}\n\`\`\`` : ''}`,
+  );
+}
+
+export function fixPrompt(state: RunState, env: PromptEnv & SessionEnv): string {
+  if (env.inSession) {
+    return [
+      section(`${nameOf('qa', env.names)} and the checks found problems in your change`, workItems(state.todo)),
+      sinceYourLastTurn(state, env.delta),
+      teamNotes(state, 'developer', env),
+      task(
+        `Fix the ${state.todo.length} item(s) above. For each: reproduce it (a failing test), find the root cause rather than the symptom, fix it, make the test pass, and check the rest of your change for the same mistake. If an item is not a bug according to the spec, mark it NOT_A_BUG and cite the evidence; if you can't fix it, NOT_FIXED and say exactly what blocks you. Answer in the fix-report format: per item id, status, root cause, change and regression test, plus every file you changed.`,
+      ),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
   return [
     section('Items to fix', workItems(state.todo)),
     guidanceFromLead(state, env),
     requirements(state),
     changes(state),
+    teamNotes(state, 'bugFixer', env),
     task(
       `Fix the ${state.todo.length} item(s) above, found by ${nameOf('qa', env.names)} and the automated checks. For each: reproduce, fix the root cause, add a regression test, and run the related tests.`,
       brief(state, 'bugFixer', env),
@@ -180,24 +279,40 @@ export function fixPrompt(state: RunState, env: PromptEnv): string {
     .join('\n\n');
 }
 
-export function reworkPrompt(state: RunState, env: PromptEnv): string {
-  const sources = [...new Set(state.todo.map((t) => (t.source === 'security' ? nameOf('security', env.names) : nameOf('reviewer', env.names))))].join(' and ');
+export function reworkPrompt(state: RunState, env: PromptEnv & SessionEnv): string {
+  const sourceName = (t: WorkItem) => (t.source === 'security' ? nameOf('security', env.names) : t.source === 'completeness' || t.source === 'checks' ? 'the orchestrator’s completeness checks' : nameOf('reviewer', env.names));
+  const sources = [...new Set(state.todo.map(sourceName))].join(' and ');
+  if (env.inSession) {
+    return [
+      section('Items to address', workItems(state.todo)),
+      guidanceFromLead(state, env),
+      sinceYourLastTurn(state, env.delta),
+      teamNotes(state, 'developer', env),
+      task(
+        `Your change was sent back by ${sources}. Address every item above: fix it properly, or explain with evidence why it isn't a problem (status NOT_DONE with the evidence in notes — the team lead will rule). In \`criteriaCoverage\` use the item ids; list every file you changed.`,
+      ),
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+  }
   return [
-    section('Findings to address', workItems(state.todo)),
+    section('Items to address', workItems(state.todo)),
     guidanceFromLead(state, env),
     requirements(state),
     design(state),
     changes(state),
+    surfacesNote(state),
+    teamNotes(state, 'developer', env),
     task(
-      `Your implementation was rejected by ${sources}. Address every finding above: fix it properly, or explain with evidence why it isn't a problem. In \`criteriaCoverage\` use the finding ids; list every file you changed.`,
+      `Your implementation was sent back by ${sources}. Address every item above: fix it properly, or explain with evidence why it isn't a problem (status NOT_DONE with the evidence in notes — the team lead will rule). In \`criteriaCoverage\` use the item ids; list every file you changed.`,
     ),
   ]
     .filter(Boolean)
     .join('\n\n');
 }
 
-export function securityPrompt(state: RunState, env: PromptEnv & { diff?: DiffSnapshot; leads: ScanLead[]; depth: Depth }): string {
-  const parts = [requirements(state), design(state), changes(state, env.diff), leadsSection(env.leads, 'security')];
+export function securityPrompt(state: RunState, env: PromptEnv & { diff?: DiffSnapshot; delta?: DeltaDiff; leads: ScanLead[]; depth: Depth }): string {
+  const parts = [requirements(state), design(state), changes(state, env.diff, env.delta), leadsSection(env.leads, 'security'), teamNotes(state, 'security', env)];
   if (state.security?.findings.length) {
     parts.push(section('Your findings from the previous round (re-verify; reuse ids if still present)', state.security.findings.map((f) => `- ${f.id} (${f.severity}) ${f.description}`).join('\n')));
   }
@@ -205,8 +320,8 @@ export function securityPrompt(state: RunState, env: PromptEnv & { diff?: DiffSn
   return parts.filter(Boolean).join('\n\n');
 }
 
-export function reviewPrompt(state: RunState, env: PromptEnv & { diff?: DiffSnapshot; leads: ScanLead[]; depth: Depth }): string {
-  const parts = [requirements(state), design(state), changes(state, env.diff), checksSection(state), leadsSection(env.leads, 'reviewer')];
+export function reviewPrompt(state: RunState, env: PromptEnv & { diff?: DiffSnapshot; delta?: DeltaDiff; leads: ScanLead[]; depth: Depth }): string {
+  const parts = [requirements(state), design(state), changes(state, env.diff, env.delta), checksSection(state), leadsSection(env.leads, 'reviewer'), teamNotes(state, 'reviewer', env)];
   if (state.qa) parts.push(section('QA result', `${state.qa.status}: ${state.qa.summary}`));
   if (state.review?.findings.length) {
     parts.push(section('Your findings from the previous round (re-verify; reuse ids if still present)', state.review.findings.map((f) => `- ${f.id} (${f.severity}) ${f.description}`).join('\n')));
@@ -236,6 +351,7 @@ export function arbitratePrompt(state: RunState, env: PromptEnv): string {
     changes(state),
     fixerView,
     section('Items in dispute or recurring', history),
+    teamNotes(state, 'lead', env),
     task(
       'Mode: arbitration. The team is stuck on the items above. Read the relevant code and the spec, then rule on each item: fix (with guidance that changes the approach), waive (MEDIUM/LOW only, with a reason), or escalate (a one-line product question for the human).',
     ),

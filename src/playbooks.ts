@@ -110,7 +110,14 @@ export function buildSystemPrompt(root: string, role: RoleId, ctx: PromptContext
       '- The `.ai-team/` directory belongs to the orchestrator: read it if useful, never modify it.',
       '- Read-only git commands (status, diff, log, show) are fine. Never run git commands that change history or the working tree (commit, reset, checkout, stash, rebase, push).',
       '- Consider the reversibility of your actions: local, reversible actions such as editing files or running tests are fine; never run destructive commands (deleting data or branches, `rm -rf`, dropping tables).',
-      canWrite ? '- You may modify the repository as your task requires.' : '- Do not modify files in the repository.',
+      canWrite
+        ? '- You may modify the repository as your task requires.'
+        : '- Do not modify files in the repository — not with edit tools and not through the shell. The orchestrator undoes such changes and records them.',
+      '',
+      '# Working with the team',
+      '- Your role is your expertise, not the limit of what you may notice. If you see a problem outside your specialty — a flawed design, a missing requirement, a security hole, a regression, an approach that will not work — say so, with evidence, even if it contradicts the team lead.',
+      '- Use `signals` in your answer for anything beyond your own deliverable: `concern` (a problem for a specific teammate), `assumption` (a decision you made because the request left it open — teammates will see it and won’t flag it as a bug), `recruit` (the mission needs a member who isn’t staffed), `blocker` (you can’t finish without a decision), `question` to `human` (only when the answer materially changes the result and nobody on the team can settle it from the code — always give a proposed default).',
+      '- Prefer deciding to asking: settle what you can from the repository, tests and docs, and record it as an assumption. Don’t raise a signal just to show activity; most answers have none.',
       '- Your final answer is structured JSON matching the required schema. It goes to your teammates and the human: keep every text field concise, specific and factual.',
     ].join('\n'),
   );

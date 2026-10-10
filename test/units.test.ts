@@ -241,7 +241,7 @@ test('the HTML report renders a running mission and escapes agent text', () => {
 test('schemas convert to JSON Schema for structured output', () => {
   const schema = toJsonSchema(QaOutput) as { type: string; required: string[] };
   assert.equal(schema.type, 'object');
-  assert.deepEqual(schema.required.sort(), ['bugs', 'criteria', 'scenarios', 'status', 'summary']);
+  assert.deepEqual(schema.required.sort(), ['bugs', 'criteria', 'scenarios', 'signals', 'status', 'summary']);
 });
 
 test('slugify', () => {

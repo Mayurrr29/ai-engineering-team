@@ -5,6 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { Command, InvalidArgumentError } from 'commander';
 import { loadConfig, type Config } from './config.js';
+import { isSolo } from './guardrails.js';
 import { initProject } from './init.js';
 import { onboard } from './onboarding.js';
 import { Orchestrator } from './orchestrator.js';
@@ -320,8 +321,10 @@ async function runOnboarding() {
 }
 
 function finish(config: Config, state: RunState, reportPath: string | undefined, opts: BuildOptions) {
-  if (reportPath && opts.open !== false && config.ui.openReport && process.stdout.isTTY && !process.env.CI) openInBrowser(reportPath);
-  if (state.status !== 'approved') process.exitCode = 1;
+  // The visual report is for team missions and plans; answers and small solo changes are complete in the terminal.
+  const worthOpening = state.status === 'planned' || (state.status !== 'answered' && !isSolo(state.lineup));
+  if (reportPath && worthOpening && opts.open !== false && config.ui.openReport && process.stdout.isTTY && !process.env.CI) openInBrowser(reportPath);
+  if (!['approved', 'answered', 'planned'].includes(state.status)) process.exitCode = 1;
 }
 
 function openInBrowser(file: string) {
@@ -342,11 +345,17 @@ function humanName(): string | undefined {
 }
 
 function statusIcon(status: string): string {
-  return ({ running: c.blue('●'), approved: c.green('✔'), rejected: c.red('✘'), failed: c.yellow('!'), paused: c.yellow('Ⅱ') } as Record<string, string>)[status] ?? '·';
+  return ({ running: c.blue('●'), approved: c.green('✔'), rejected: c.red('✘'), failed: c.yellow('!'), paused: c.yellow('Ⅱ'), answered: c.green('?'), planned: c.green('▤') } as Record<string, string>)[status] ?? '·';
 }
 
 function printStatus(state: RunState, dir: string, config: Config) {
   const names = config.team.names;
+  if (state.status === 'answered' || state.status === 'planned') {
+    console.log(`\n${statusIcon(state.status)} ${c.bold(state.plan?.missionName ?? state.feature)}  ${c.gray(state.status)}  ${c.gray(`$${state.costUsd.toFixed(2)}`)}`);
+    if (state.answer) console.log(`\n${state.answer.answer}\n`);
+    console.log(`  ${c.gray('Report:')} ${path.join(dir, 'report.html')}\n`);
+    return;
+  }
   const decision = evaluateRelease(state, { checksConfigured: config.checks.length > 0, names, humanName: humanName() });
   console.log(`\n${statusIcon(state.status)} ${c.bold(state.plan?.missionName ?? state.feature)}  ${c.gray(state.status)}`);
   console.log(c.gray(`  ${state.id} · ${state.mode} mode · next: ${state.next} · round ${state.iteration}/${state.maxIterations} · $${state.costUsd.toFixed(2)}${state.budgetUsd ? ` of $${state.budgetUsd.toFixed(2)}` : ''}\n`));

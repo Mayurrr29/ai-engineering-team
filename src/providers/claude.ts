@@ -51,7 +51,10 @@ export class ClaudeCodeProvider implements AIProvider {
       permissionMode: req.bypassPermissions ? 'bypassPermissions' : 'dontAsk',
       allowDangerouslySkipPermissions: req.bypassPermissions || undefined,
       hooks: { PreToolUse: [{ matcher: 'Edit|Write|NotebookEdit|MultiEdit', hooks: [guardWrites] }] },
-      systemPrompt: { type: 'preset', preset: 'claude_code', append: req.systemPrompt },
+      // The Claude Code preset teaches tool use; a member without tools (e.g. writing the debrief) doesn't need it.
+      systemPrompt: tools.length ? { type: 'preset', preset: 'claude_code', append: req.systemPrompt } : req.systemPrompt,
+      env: agentEnv(),
+      resume: req.resumeSessionId,
       settingSources: ['user', 'project', 'local'],
       outputFormat: { type: 'json_schema', schema: req.outputSchema },
       maxTurns: req.maxTurns,
@@ -89,6 +92,15 @@ export class ClaudeCodeProvider implements AIProvider {
     };
     return { output: result.structured_output, costUsd: result.total_cost_usd, turns: result.num_turns, sessionId: result.session_id, tokens };
   }
+}
+
+/**
+ * The environment for agent sessions. When ai-team itself runs inside a Claude Code session, the parent's session
+ * variables would make every member write to (and resume) the same session; each member needs its own.
+ */
+const PARENT_SESSION_VARS = ['CLAUDE_CODE_SESSION_ID', 'CLAUDE_CODE_REMOTE_SESSION_ID', 'CLAUDE_CODE_CHILD_SESSION', 'CLAUDECODE'];
+function agentEnv(): Record<string, string | undefined> {
+  return Object.fromEntries(Object.entries(process.env).filter(([k]) => !PARENT_SESSION_VARS.includes(k)));
 }
 
 function reportActivity(message: Extract<SDKMessage, { type: 'assistant' }>, cwd: string, onActivity?: (line: string) => void) {

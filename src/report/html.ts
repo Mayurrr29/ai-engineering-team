@@ -91,8 +91,8 @@ function list(items: string[]): string {
 function hero(state: RunState, decision: ReleaseDecision | undefined, names: TeamNames): string {
   const status = state.status;
   const label =
-    status === 'approved' ? 'APPROVED' : status === 'rejected' ? 'REJECTED' : status === 'paused' ? 'PAUSED' : status === 'failed' ? 'NEEDS ATTENTION' : 'IN PROGRESS';
-  const tone: Tone = status === 'approved' ? 'good' : status === 'rejected' || status === 'failed' ? 'bad' : status === 'paused' ? 'warn' : 'info';
+    status === 'approved' ? 'APPROVED' : status === 'rejected' ? 'REJECTED' : status === 'paused' ? 'PAUSED' : status === 'failed' ? 'NEEDS ATTENTION' : status === 'answered' ? 'ANSWERED' : status === 'planned' ? 'PLAN READY' : 'IN PROGRESS';
+  const tone: Tone = status === 'approved' || status === 'answered' || status === 'planned' ? 'good' : status === 'rejected' || status === 'failed' ? 'bad' : status === 'paused' ? 'warn' : 'info';
   const title = state.plan?.missionName ?? state.feature;
   const quote = decision && (status === 'approved' || status === 'rejected') ? `<p class="hal">${avatar('gate', names, 'sm')}<span>${esc(decision.verdict)}</span></p>` : '';
   const error = state.error ? `<p class="callout callout-${tone}">${esc(state.error)}</p>` : '';
@@ -127,6 +127,27 @@ function tiles(state: RunState): string {
     ${tile('Tests added', String(tests))}
     ${tile('Bugs found', String(bugs.size), bugs.size ? `${fixed} fixed` : '')}
   </div>`;
+}
+
+function answerSection(state: RunState, names: TeamNames): string {
+  const a = state.answer;
+  if (!a) return '';
+  const who = state.calls.at(-1)?.role ?? 'lead';
+  return section(
+    'answer',
+    `Answer from ${nameOf(who, names)}`,
+    `<div class="debrief">${avatar(who, names, 'lg')}<div><p>${rich(a.answer)}</p></div></div>${a.evidence.length || a.followUps.length ? `<div class="grid-2">${a.evidence.length ? `<div><h3>Evidence</h3>${list(a.evidence)}</div>` : ''}${a.followUps.length ? `<div><h3>Follow-ups</h3>${list(a.followUps)}</div>` : ''}</div>` : ''}`,
+  );
+}
+
+/** What members raised beyond their own deliverables: assumptions, concerns, recruit requests, blockers, questions. */
+function ledgerSection(state: RunState, names: TeamNames): string {
+  const entries = state.signals ?? [];
+  if (!entries.length) return '';
+  const rows = entries
+    .map((s) => `<tr><td>${esc(s.id)}</td><td>${esc(nameOf(s.from, names))}</td><td>${esc(s.kind)}</td><td>${esc(s.to === 'team' || s.to === 'human' ? s.to : nameOf(s.to, names))}</td><td>${rich(s.summary)}${s.evidence ? `<br><span class="muted">${esc(s.evidence)}</span>` : ''}</td></tr>`)
+    .join('');
+  return section('ledger', 'Raised by the team', `<table><thead><tr><th>Id</th><th>From</th><th>Kind</th><th>To</th><th>What</th></tr></thead><tbody>${rows}</tbody></table>`);
 }
 
 function debriefSection(state: RunState, names: TeamNames): string {
@@ -479,7 +500,8 @@ function artifactsSection(state: RunState): string {
 export function renderReport(state: RunState, opts: ReportOptions): string {
   const { names } = opts;
   const finished = state.status === 'approved' || state.status === 'rejected';
-  const decision = finished || state.status !== 'running' ? evaluateRelease(state, opts) : undefined;
+  const nonCode = state.status === 'answered' || state.status === 'planned';
+  const decision = !nonCode && (finished || state.status !== 'running') ? evaluateRelease(state, opts) : undefined;
   const hasMermaid = !!state.design && !!(state.design.sequenceDiagram.trim() || state.design.erDiagram.trim());
   const nav = [
     ['debrief', 'Debrief'],
@@ -495,7 +517,9 @@ export function renderReport(state: RunState, opts: ReportOptions): string {
   const body = [
     hero(state, decision, names),
     tiles(state),
+    answerSection(state, names),
     debriefSection(state, names),
+    ledgerSection(state, names),
     gateSection(decision, names),
     teamSection(state, names),
     flowSection(state, names),

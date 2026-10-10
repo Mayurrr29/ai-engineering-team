@@ -21,7 +21,22 @@ export function printFinish(state: RunState, decision: ReleaseDecision | undefin
   const { names, emoji } = opts;
   const out: string[] = [''];
 
-  if (decision && (state.status === 'approved' || state.status === 'rejected')) {
+  const solo = !(['pm', 'architect', 'qa', 'security', 'reviewer'] as const).some((r) => state.lineup[r] !== 'off');
+  if (state.status === 'answered' && state.answer) {
+    // A question gets its answer right here, not a report.
+    out.push(c.bold(c.cyan('Answer')));
+    const lines = state.answer.answer.split('\n');
+    out.push(...lines.slice(0, 40).map((l) => `  ${l}`));
+    if (lines.length > 40) out.push(c.gray(`  … ${lines.length - 40} more line(s) in the mission report`));
+    for (const e of state.answer.evidence.slice(0, 6)) out.push(`  ${c.gray('•')} ${c.gray(e)}`);
+  } else if (state.status === 'planned' && state.design) {
+    out.push(`${c.bold(c.cyan('Plan ready'))}  ${state.design.summary}`);
+    for (const [i, m] of state.design.milestones.entries()) out.push(`  ${c.gray(`${i + 1}.`)} ${m.name}`);
+  } else if (decision && solo && decision.approved) {
+    // Small solo change: one line from the gate instead of the full board.
+    const checks = state.checks?.results.map((r) => `${r.name} ${r.passed ? '✓' : '✗'}`).join(' · ');
+    out.push(`${emoji ? `${MEMBERS.gate.icon} ` : ''}${c.green(c.bold('APPROVED'))}${checks ? c.gray(`  checks: ${checks}`) : c.gray('  no checks configured — not verified by tests')}`);
+  } else if (decision && (state.status === 'approved' || state.status === 'rejected')) {
     const approved = decision.approved;
     const color = approved ? c.green : c.red;
     const mark = (s: string) => (s === 'PASS' ? c.green('✓ PASS') : s === 'FAIL' ? c.red('✗ FAIL') : s === 'WARN' ? c.yellow('! WARN') : c.gray('– SKIP'));
@@ -54,6 +69,8 @@ export function printFinish(state: RunState, decision: ReleaseDecision | undefin
   }
 
   const d = state.debrief;
+  const notes = (state.signals ?? []).filter((s) => s.kind === 'assumption' || s.kind === 'concern');
+  if (notes.length) out.push(`  ${c.yellow('Raised by the team:')} ${notes.slice(0, 3).map((s) => s.summary).join(' · ')}${notes.length > 3 ? c.gray(` (+${notes.length - 3} in the report)`) : ''}`);
   if (d) {
     out.push('');
     out.push(`${emoji ? `${MEMBERS.lead.icon} ` : ''}${c.bold(c.cyan(nameOf('lead', names)))} ${c.gray('· debrief')}`);

@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { TEAM_DIR } from './paths.js';
 
@@ -141,4 +142,65 @@ export function treeFingerprint(cwd: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Snapshots the working tree (tracked and untracked files, minus ignored ones and .ai-team/) as a git tree object,
+ * without touching the user's index, HEAD or files. Uses a throwaway index seeded from the real one, so only
+ * changed files are re-hashed.
+ */
+export function snapshotTree(cwd: string): string | undefined {
+  const tmpIndex = path.join(os.tmpdir(), `ai-team-index-${process.pid}-${Math.random().toString(36).slice(2)}`);
+  try {
+    const realIndex = path.resolve(cwd, git(cwd, ['rev-parse', '--git-path', 'index']));
+    if (fs.existsSync(realIndex)) {
+      fs.copyFileSync(realIndex, tmpIndex);
+      // Keep the original timestamp: git only re-reads files changed in the same second as the index if the
+      // index looks as old as it really is (racy-git protection). A fresh mtime would hide such edits.
+      const { atime, mtime } = fs.statSync(realIndex);
+      fs.utimesSync(tmpIndex, atime, mtime);
+    }
+    const env = { ...process.env, GIT_INDEX_FILE: tmpIndex };
+    const run = (args: string[]) => execFileSync('git', args, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 }).trim();
+    run(['add', '-A', '--', '.', `:(exclude)${TEAM_DIR}`]);
+    return run(['write-tree']);
+  } catch {
+    return undefined;
+  } finally {
+    fs.rmSync(tmpIndex, { force: true });
+  }
+}
+
+export interface TreeChange {
+  status: 'added' | 'modified' | 'deleted';
+  path: string;
+}
+
+/** Files that differ between two snapshots (paths relative to the repository root). */
+export function changedBetween(cwd: string, from: string, to: string): TreeChange[] {
+  const out = git(cwd, ['diff', '--name-status', '--no-renames', from, to]);
+  return out
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const [code, ...rest] = line.split('\t');
+      const status = code.startsWith('A') ? 'added' : code.startsWith('D') ? 'deleted' : 'modified';
+      return { status, path: rest.join('\t') } as TreeChange;
+    });
+}
+
+/** Puts the given files back exactly as they were in `snapshot`: rewrites modified/deleted ones, removes added ones. */
+export function restoreFromSnapshot(cwd: string, snapshot: string, changes: TreeChange[]): void {
+  const top = git(cwd, ['rev-parse', '--show-toplevel']);
+  const restore = changes.filter((c) => c.status !== 'added').map((c) => c.path);
+  if (restore.length) git(top, ['restore', `--source=${snapshot}`, '--worktree', '--', ...restore]);
+  for (const c of changes.filter((c) => c.status === 'added')) fs.rmSync(path.join(top, c.path), { force: true });
+}
+
+/** Unified diff between two snapshots, capped like diffSince. */
+export function diffBetween(cwd: string, from: string, to: string, maxChars = 60_000): { stat: string; patch: string; truncated: boolean } {
+  const stat = git(cwd, ['diff', '--stat', from, to]);
+  const patch = git(cwd, ['diff', from, to]);
+  const truncated = patch.length > maxChars;
+  return { stat, patch: truncated ? patch.slice(0, maxChars) : patch, truncated };
 }

@@ -49,6 +49,7 @@ export function plan(overrides: Partial<MissionPlan> = {}): MissionPlan {
     rationale: 'Tiny contained change.',
     estimatedCostUsd: 0.2,
     budgetNote: '',
+    answer: '',
     ...overrides,
   };
 }
@@ -88,6 +89,7 @@ export const design = (): DesignOutput => ({
   filePlan: [{ path: 'src/app.js', action: 'modify', purpose: 'route' }],
   testPlan: ['health.test.js'],
   risks: [],
+  milestones: [],
 });
 
 export const dev = (summary = 'Added /health route', files = ['src/routes/health.ts']): DevOutput => ({
@@ -97,6 +99,8 @@ export const dev = (summary = 'Added /health route', files = ['src/routes/health
   testsAdded: ['health.test.ts'],
   commandsRun: [{ command: 'npm test', result: 'pass' }],
   notes: [],
+  rootCause: '',
+  signals: [],
 });
 
 export const qaPass = (): QaOutput => ({
@@ -105,6 +109,7 @@ export const qaPass = (): QaOutput => ({
   criteria: [{ id: 'AC-1', result: 'PASS', evidence: 'lab script' }],
   scenarios: [{ category: 'Happy path', scenario: 'GET /health', result: 'PASS', evidence: 'health.test.ts' }],
   bugs: [],
+  signals: [],
 });
 
 export const qaFail = (id = 'BUG-001', severity: Severity = 'HIGH'): QaOutput => ({
@@ -113,6 +118,7 @@ export const qaFail = (id = 'BUG-001', severity: Severity = 'HIGH'): QaOutput =>
   criteria: [{ id: 'AC-1', result: 'FAIL', evidence: 'returns 200 when DB down' }],
   scenarios: [{ category: 'Database', scenario: 'DB down', result: 'FAIL', evidence: 'returns 200' }],
   bugs: [{ id, severity, title: 'Returns 200 when DB is down', location: 'src/routes/health.ts', steps: ['Stop DB', 'GET /health'], expected: '503', actual: '200' }],
+  signals: [],
 });
 
 export const fix = (id = 'BUG-001', status: 'FIXED' | 'NOT_FIXED' | 'NOT_A_BUG' = 'FIXED'): FixOutput => ({
@@ -120,6 +126,7 @@ export const fix = (id = 'BUG-001', status: 'FIXED' | 'NOT_FIXED' | 'NOT_A_BUG' 
   fixes: [{ id, status, rootCause: 'No DB ping', change: 'Ping DB', regressionTest: 'health.test.ts: db down' }],
   filesChanged: [{ path: 'src/routes/health.ts', change: 'ping db' }],
   commandsRun: [],
+  signals: [],
 });
 
 export const approve = (lessons: string[] = []): ReviewOutput => ({
@@ -131,6 +138,7 @@ export const approve = (lessons: string[] = []): ReviewOutput => ({
   threats: [],
   missedEdgeCases: [],
   lessons,
+  signals: [],
 });
 
 export const reject = (id = 'REV-001', severity: Severity = 'HIGH', status: 'APPROVED' | 'REJECTED' = 'REJECTED'): ReviewOutput => ({
@@ -142,6 +150,7 @@ export const reject = (id = 'REV-001', severity: Severity = 'HIGH', status: 'APP
   threats: [],
   missedEdgeCases: [],
   lessons: [],
+  signals: [],
 });
 
 export const ruling = (rulings: LeadDecision['rulings']): LeadDecision => ({ summary: 'Ruling given', rulings });

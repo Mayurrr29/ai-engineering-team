@@ -20,7 +20,8 @@ export interface GuardrailResult {
   upgrades: Upgrade[];
 }
 
-function raise(lineup: Lineup, member: keyof Lineup, to: Depth, reason: string, upgrades: Upgrade[]): void {
+/** Raises one member's depth (never lowers it) and records why. */
+export function raise(lineup: Lineup, member: keyof Lineup, to: Depth, reason: string, upgrades: Upgrade[]): void {
   const current = lineup[member] as Depth;
   // pm and architect only have off/full
   const target: Depth = (member === 'pm' || member === 'architect') && to === 'light' ? 'full' : to;

@@ -65,7 +65,7 @@ test('M mission with risk: full lineup, briefs reach members, reviews run in par
     pm: [spec()],
     developer: [dev()],
     qa: [qaPass()],
-    security: [slow('security', approve())],
+    security: [slow('security', approve(['Ownership checks live in the route, not the model']))],
     reviewer: [slow('reviewer', approve())],
   });
   const out = await new Orchestrator({ root, config: config(), provider }).build('Let users update their profile');
@@ -104,7 +104,7 @@ test('guardrail: a "solo" change that touches auth code brings in EDITH and TARS
   assert.equal(out.state.status, 'approved');
   assert.ok(out.state.lineup.security !== 'off' && out.state.lineup.reviewer !== 'off');
   assert.ok(out.state.upgrades.some((u) => u.member === 'security' && /security-sensitive/.test(u.reason)));
-  assert.deepEqual(roles(provider), ['lead', 'developer', 'security', 'reviewer', 'lead'], 'no longer solo, so JARVIS writes the debrief');
+  assert.deepEqual(roles(provider), ['lead', 'developer', 'security', 'reviewer'], 'clean mission: the debrief is written from the facts, no extra AI call');
   assert.match(byRole(provider, 'reviewer')[0].prompt, /\+export const sign/);
 });
 
@@ -123,7 +123,7 @@ test('budget: the mission pauses instead of overspending, and resumes with a hig
   const second = new MockProvider(script, 0.4);
   const resumed = await new Orchestrator({ root, config: config(), provider: second }).resume(paused.state.id, { budgetUsd: 10 });
   assert.equal(resumed.state.status, 'approved');
-  assert.deepEqual(roles(second), ['qa', 'security', 'reviewer', 'lead']);
+  assert.deepEqual(roles(second), ['qa', 'security', 'reviewer']);
 });
 
 test('baseline: failures that existed before the mission are not blamed on the team', async () => {
@@ -155,7 +155,7 @@ test('baseline: more failing tests than before still blocks, and BAYMAX gets cal
       },
     ],
   });
-  const out = await new Orchestrator({ root, config: config({ checks, baselineChecks: true }), provider }).build('Tiny change');
+  const out = await new Orchestrator({ root, config: config({ loop: { fixer: 'bugFixer' }, checks, baselineChecks: true }), provider }).build('Tiny change');
 
   assert.equal(out.state.status, 'approved');
   assert.deepEqual(roles(provider), ['lead', 'developer', 'bugFixer']);
@@ -173,7 +173,7 @@ test('QA: low-severity bugs are recorded as follow-ups without a fix round', asy
 test('QA finds a HIGH bug → BAYMAX fixes → EVE re-tests → approved', async () => {
   const root = tmpProject();
   const provider = new MockProvider({ lead: [teamPlan(), debrief()], pm: [spec()], developer: [dev()], qa: [qaFail(), qaPass()], bugFixer: [fix()], security: [approve()], reviewer: [approve()] });
-  const out = await new Orchestrator({ root, config: config(), provider }).build('x');
+  const out = await new Orchestrator({ root, config: config({ loop: { fixer: 'bugFixer' } }), provider }).build('x');
 
   assert.equal(out.state.status, 'approved');
   assert.deepEqual(roles(provider), ['lead', 'pm', 'developer', 'qa', 'bugFixer', 'qa', 'security', 'reviewer', 'lead']);
@@ -194,7 +194,7 @@ test('arbitration: a recurring MEDIUM bug goes to JARVIS, who can waive it', asy
     security: [approve()],
     reviewer: [approve()],
   });
-  const out = await new Orchestrator({ root, config: config(), provider }).build('x');
+  const out = await new Orchestrator({ root, config: config({ loop: { fixer: 'bugFixer' } }), provider }).build('x');
 
   assert.equal(out.state.status, 'approved');
   assert.deepEqual(roles(provider), ['lead', 'pm', 'developer', 'qa', 'bugFixer', 'qa', 'lead', 'security', 'reviewer', 'lead']);
@@ -210,7 +210,7 @@ test('arbitration: JARVIS cannot waive a HIGH bug; without a human the team keep
     qa: [qaFail('BUG-002', 'HIGH')],
     bugFixer: [fix('BUG-002')],
   });
-  const out = await new Orchestrator({ root, config: config({ maxIterations: 3 }), provider }).build('x');
+  const out = await new Orchestrator({ root, config: config({ loop: { fixer: 'bugFixer' }, maxIterations: 3 }), provider }).build('x');
 
   assert.equal(out.state.status, 'rejected');
   assert.equal(out.state.waivers.length, 0);
@@ -234,7 +234,7 @@ test('arbitration: escalations ask the human, who can accept the risk', async ()
     asked.push(q);
     return 'waive';
   };
-  const out = await new Orchestrator({ root, config: config(), provider, ask }).build('x');
+  const out = await new Orchestrator({ root, config: config({ loop: { fixer: 'bugFixer' } }), provider, ask }).build('x');
 
   assert.equal(out.state.status, 'approved');
   assert.ok(asked.some((q) => /admins be allowed/.test(q)));
@@ -252,7 +252,7 @@ test('arbitration: a bug the fixer disputes goes to JARVIS on the next report', 
     security: [approve()],
     reviewer: [approve()],
   });
-  const out = await new Orchestrator({ root, config: config(), provider }).build('x');
+  const out = await new Orchestrator({ root, config: config({ loop: { fixer: 'bugFixer' } }), provider }).build('x');
   assert.equal(out.state.status, 'approved');
   assert.equal(byRole(provider, 'bugFixer').length, 1);
   assert.equal(out.state.decisions.length, 1);
@@ -272,7 +272,7 @@ test('review rejection → FRIDAY reworks → QA and reviews run again on the ne
 
   assert.equal(out.state.status, 'approved');
   assert.deepEqual(roles(provider), ['lead', 'pm', 'developer', 'qa', 'security', 'reviewer', 'developer', 'qa', 'security', 'reviewer', 'lead']);
-  assert.match(byRole(provider, 'developer')[1].prompt, /REV-001[\s\S]*rejected by TARS/);
+  assert.match(byRole(provider, 'developer')[1].prompt, /REV-001[\s\S]*sent back by TARS/);
   assert.equal(out.state.review?.codeVersion, 2);
 });
 
@@ -350,7 +350,7 @@ test('an agent crash marks the mission failed; resume continues from the failed 
   const healthy = new MockProvider({ lead: [debrief()], qa: [qaPass()], security: [approve()], reviewer: [approve()] });
   const second = await new Orchestrator({ root, config: config(), provider: healthy }).resume(first.state.id);
   assert.equal(second.state.status, 'approved');
-  assert.deepEqual(roles(healthy), ['qa', 'security', 'reviewer', 'lead']);
+  assert.deepEqual(roles(healthy), ['qa', 'security', 'reviewer']);
   assert.equal(RunStore.load(root, first.state.id).state.status, 'approved');
 });
 
@@ -408,7 +408,7 @@ test('late rounds: a brand-new MEDIUM issue in QA round 3 becomes a follow-up, n
     security: [approve()],
     reviewer: [approve()],
   });
-  const out = await new Orchestrator({ root, config: config(), provider }).build('x');
+  const out = await new Orchestrator({ root, config: config({ loop: { fixer: 'bugFixer' } }), provider }).build('x');
 
   assert.equal(out.state.status, 'approved');
   assert.equal(byRole(provider, 'bugFixer').length, 2, 'round 2 still fixes the new MEDIUM; round 3 defers it');
