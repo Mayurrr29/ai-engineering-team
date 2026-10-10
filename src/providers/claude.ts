@@ -80,7 +80,14 @@ export class ClaudeCodeProvider implements AIProvider {
     if (result.structured_output === undefined) {
       throw new AgentError(`${req.member} finished without structured output.`, result.total_cost_usd);
     }
-    return { output: result.structured_output, costUsd: result.total_cost_usd, turns: result.num_turns, sessionId: result.session_id };
+    const u = result.usage;
+    const tokens = {
+      input: u?.input_tokens ?? 0,
+      output: u?.output_tokens ?? 0,
+      cacheRead: u?.cache_read_input_tokens ?? 0,
+      cacheWrite: u?.cache_creation_input_tokens ?? 0,
+    };
+    return { output: result.structured_output, costUsd: result.total_cost_usd, turns: result.num_turns, sessionId: result.session_id, tokens };
   }
 }
 

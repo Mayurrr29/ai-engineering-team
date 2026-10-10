@@ -34,12 +34,21 @@ export interface AgentRequest {
   onActivity?: (line: string) => void;
 }
 
+/** Token usage of one agent call. Cached reads are much cheaper than fresh input. */
+export interface TokenUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}
+
 export interface AgentResult {
   /** Parsed structured output (validated again by the orchestrator). */
   output: unknown;
   costUsd: number;
   turns: number;
   sessionId?: string;
+  tokens?: TokenUsage;
 }
 
 export interface AIProvider {

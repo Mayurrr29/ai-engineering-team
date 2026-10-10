@@ -89,6 +89,8 @@ async function runSolo(scenario) {
   const tools = ['Read', 'Glob', 'Grep', 'Bash', 'Edit', 'Write', 'TodoWrite'];
   const started = Date.now();
   let cost = 0;
+  let tokens;
+  let turns = null;
   let status = 'no-result';
   try {
     const options = { cwd: work, tools, allowedTools: tools, permissionMode: 'dontAsk', systemPrompt: { type: 'preset', preset: 'claude_code' }, settingSources: ['project'], maxTurns: 200 };
@@ -97,6 +99,8 @@ async function runSolo(scenario) {
       if (m.type === 'assistant') for (const b of m.message.content) if (b.type === 'tool_use') fs.appendFileSync(log, `· ${b.name} ${JSON.stringify(b.input).slice(0, 160)}\n`);
       if (m.type === 'result') {
         cost = m.total_cost_usd;
+        turns = m.num_turns;
+        tokens = usageTokens(m.usage);
         status = m.subtype === 'success' ? 'done' : m.subtype;
         fs.appendFileSync(log, `\n${m.subtype === 'success' ? m.result : m.subtype}\n`);
       }
@@ -105,7 +109,16 @@ async function runSolo(scenario) {
     status = 'error';
     fs.appendFileSync(log, `\nerror: ${err.message}\n`);
   }
-  writeResult(label, scenario, task, work, { status, costUsd: cost, wallMs: Date.now() - started, iterations: null, lineup: 'solo agent', exitCodes: {} });
+  writeResult(label, scenario, task, work, {
+    status,
+    costUsd: cost,
+    wallMs: Date.now() - started,
+    iterations: null,
+    lineup: 'solo agent',
+    exitCodes: {},
+    tokens,
+    calls: [{ role: 'solo', step: 'solo', costUsd: round(cost), ms: Date.now() - started, turns, tokens }],
+  });
 }
 
 function rescore() {
@@ -141,6 +154,9 @@ function writeResult(label, scenario, task, work, extra) {
     hidden: { passed: hidden.passed, total: hidden.total, failures: hidden.failures },
     visible: { passed: visible.passed, total: visible.total, failures: visible.failures },
     filesChanged: changedFiles(work),
+    tokens: extra.tokens ?? sumTokens(extra.calls ?? []),
+    calls: extra.calls ?? [],
+    ...(extra.mode && { mode: extra.mode }),
   };
   fs.mkdirSync(path.join(RESULTS_DIR, label), { recursive: true });
   fs.writeFileSync(path.join(RESULTS_DIR, label, `${scenario}.json`), JSON.stringify(result, null, 2) + '\n');
@@ -171,6 +187,8 @@ async function runScenario(scenario) {
     onboardingCostUsd: readOnboardingCost(work),
     iterations: state?.iteration ?? null,
     lineup: state?.lineup ?? null,
+    mode: state?.plan?.taskType,
+    calls: (state?.calls ?? []).map((c) => ({ role: c.role, step: c.step, costUsd: round(c.costUsd), ms: c.ms, turns: c.turns, effort: c.effort, ok: c.ok, tokens: c.tokens })),
     wallMs,
     exitCodes: { init: init.code, build: build.code },
   });
@@ -187,6 +205,16 @@ function parseArgs(argv) {
     else out[key] = argv[++i];
   }
   return out;
+}
+
+function usageTokens(u) {
+  return u ? { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0, cacheWrite: u.cache_creation_input_tokens ?? 0 } : undefined;
+}
+
+function sumTokens(calls) {
+  const total = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+  for (const c of calls) for (const k of Object.keys(total)) total[k] += c.tokens?.[k] ?? 0;
+  return total;
 }
 
 function splitArgs(value) {
@@ -211,6 +239,9 @@ function prepareWorkdir(label, scenario) {
   git('config', 'user.email', 'bench@example.com');
   git('config', 'user.name', 'Proving Ground');
   git('config', 'core.autocrlf', 'false');
+  // A scenario can ship a setup/ overlay: the state of the codebase the task starts from (e.g. a planted bug).
+  const setup = path.join(SCENARIOS_DIR, scenario, 'setup');
+  if (fs.existsSync(setup)) overlay(setup, work);
   git('add', '-A');
   git('commit', '-qm', 'LearnHub API baseline');
   return work;

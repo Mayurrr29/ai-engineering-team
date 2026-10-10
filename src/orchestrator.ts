@@ -10,7 +10,7 @@ import { detectPacks, type PackId } from './packs.js';
 import { buildSystemPrompt, loadProfile, type PromptContext } from './playbooks.js';
 import { paths, slugify } from './paths.js';
 import * as P from './prompts.js';
-import { AgentError, type Access, type AIProvider } from './providers/types.js';
+import { AgentError, type Access, type AIProvider, type TokenUsage } from './providers/types.js';
 import { blocks, evaluateRelease, renderRelease, type ReleaseDecision } from './release.js';
 import { renderChecks, renderDebrief, renderDecision, renderDesign, renderFix, renderImplementation, renderPlan, renderQa, renderReview, renderRunFlow, renderSpec, stripNumber } from './render.js';
 import { writeReport } from './report/html.js';
@@ -753,9 +753,9 @@ export class Orchestrator {
     const before = opts.readOnlyRepo ? git.treeFingerprint(this.root) : undefined;
     this.ui.member(role, 'working', opts.detail);
     const started = Date.now();
-    const record = (ok: boolean, costUsd: number, turns: number) => {
+    const record = (ok: boolean, costUsd: number, turns: number, tokens?: TokenUsage) => {
       state.costUsd += costUsd;
-      state.calls.push({ role, step, startedAt: new Date(started).toISOString(), ms: Date.now() - started, costUsd, turns, effort, ok });
+      state.calls.push({ role, step, startedAt: new Date(started).toISOString(), ms: Date.now() - started, costUsd, turns, effort, ok, tokens });
       this.ui.update(state);
     };
     let result;
@@ -780,7 +780,7 @@ export class Orchestrator {
       this.ui.member(role, 'failed', (err as Error).message.slice(0, 80));
       throw err;
     }
-    record(true, result.costUsd, result.turns);
+    record(true, result.costUsd, result.turns, result.tokens);
     if (before !== undefined && git.treeFingerprint(this.root) !== before) {
       const note = `${this.name(role)} (read-only) changed files in the repository`;
       state.integrity.push(note);

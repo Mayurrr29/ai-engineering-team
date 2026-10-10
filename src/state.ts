@@ -5,6 +5,7 @@ import { paths, slugify } from './paths.js';
 import type { AppliedRuleUpdate } from './rules.js';
 import type { ScanLead } from './scans.js';
 import type { Debrief, DesignOutput, DevOutput, Effort, FixOutput, LeadDecision, Lineup, MissionPlan, PmOutput, QaOutput, ReviewOutput, Severity } from './schemas.js';
+import type { TokenUsage } from './providers/types.js';
 import type { Actor, RoleId } from './team.js';
 
 export type Step =
@@ -79,6 +80,7 @@ export interface CallRecord {
   turns: number;
   effort?: Effort;
   ok: boolean;
+  tokens?: TokenUsage;
 }
 
 export interface ItemHistory {

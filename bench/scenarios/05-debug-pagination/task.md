@@ -1,0 +1,1 @@
+Bug report from the support team: the admin order list (`GET /admin/orders?page=&limit=`) is unreliable. Admins say page 1 never shows the oldest orders, and some page/limit values return strange results — once the whole orders table came back in a single response. Find the root cause, fix it, and make sure bad paging input can't do this again. Don't change the response shape.
