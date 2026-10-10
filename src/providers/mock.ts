@@ -10,6 +10,8 @@ type Responder = unknown | ((req: AgentRequest) => unknown);
 export class MockProvider implements AIProvider {
   readonly name = 'mock';
   readonly calls: AgentRequest[] = [];
+  /** Like the real SDK, a resumed session reports its cumulative cost. */
+  private readonly sessionCost = new Map<string, number>();
   private readonly queues: Partial<Record<RoleId, Responder[]>>;
 
   constructor(
@@ -27,6 +29,9 @@ export class MockProvider implements AIProvider {
     const output = typeof next === 'function' ? await (next as (r: AgentRequest) => unknown)(req) : next;
     if (output instanceof Error) throw output;
     req.onActivity?.('Read src/app.js');
-    return { output, costUsd: this.costPerCall, turns: 1, sessionId: req.resumeSessionId ?? `mock-${req.role}-${this.calls.length}` };
+    const sessionId = req.resumeSessionId ?? `mock-${req.role}-${this.calls.length}`;
+    const costUsd = (this.sessionCost.get(sessionId) ?? 0) + this.costPerCall;
+    this.sessionCost.set(sessionId, costUsd);
+    return { output, costUsd, turns: 1, sessionId };
   }
 }

@@ -167,7 +167,7 @@ export interface RunState {
   /** Working-tree snapshot (git tree id) for each code revision, used for incremental re-reviews and to undo stray edits. */
   snapshots?: Record<number, string>;
   /** Agent sessions that can be continued, with the code revision each one last saw. */
-  sessions?: Partial<Record<RoleId, { id: string; codeVersion: number }>>;
+  sessions?: Partial<Record<RoleId, { id: string; codeVersion: number; /** The session's cumulative cost as last reported. */ costUsd?: number }>>;
   /** The result of a question mission. */
   answer?: AnswerOutput;
 
@@ -194,7 +194,7 @@ export function newRunState(feature: string, mode: Mode, maxIterations: number, 
     createdAt: iso,
     updatedAt: iso,
     status: 'running',
-    next: 'baseline',
+    next: 'plan',
     iteration: 0,
     maxIterations,
     codeVersion: 0,

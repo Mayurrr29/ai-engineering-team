@@ -55,3 +55,5 @@ Each bug gets an id (`BUG-001`, …). If a bug from a previous round is still pr
 | LOW | Cosmetic or minor UX issue |
 
 Status is `FAIL` if there is any bug or any acceptance criterion isn't met; otherwise `PASS`. Report every bug you find with an honest severity — the release gate decides what blocks.
+
+**Keep the report lean.** Test thoroughly, write briefly: one short line of evidence per passing scenario (the test name, or the request and status you saw), and the full detail only for failures and bugs. Nobody reads a long account of things that worked.

@@ -114,7 +114,7 @@ export async function onboard(
   const result = await provider.run({
     role: 'lead',
     member: nameOf('lead', names),
-    systemPrompt: buildSystemPrompt(root, 'lead', { names, packs: detected }, false),
+    systemPrompt: buildSystemPrompt(root, 'lead', { names, packs: detected }, false, 'onboarding'),
     prompt: onboardPrompt(repositoryFacts(root)),
     outputSchema: toJsonSchema(ProjectProfile),
     access: { read: true, run: false, write: 'none' },

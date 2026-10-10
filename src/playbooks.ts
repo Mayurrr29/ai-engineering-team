@@ -78,7 +78,19 @@ export function loadProfile(root: string): ProjectProfile | undefined {
   }
 }
 
-export function buildSystemPrompt(root: string, role: RoleId, ctx: PromptContext, canWrite: boolean): string {
+/** JARVIS's playbook covers several modes; a call only needs the shared part and its own mode. */
+export function selectMode(playbook: string, mode?: string): string {
+  if (!mode) return playbook;
+  return playbook
+    .split(/\n---\n/)
+    .filter((chunk) => {
+      const header = /^\s*## Mode: (.+)$/m.exec(chunk);
+      return !header || header[1].toLowerCase().startsWith(mode.toLowerCase());
+    })
+    .join('\n---\n');
+}
+
+export function buildSystemPrompt(root: string, role: RoleId, ctx: PromptContext, canWrite: boolean, mode?: string): string {
   const { names } = ctx;
   const me = MEMBERS[role];
   const roster = ROSTER_ORDER.filter((r) => r !== role)
@@ -91,7 +103,7 @@ export function buildSystemPrompt(root: string, role: RoleId, ctx: PromptContext
       `Personality: ${me.voice} It shows in tone only — accuracy and substance always come first, and structured output fields stay plain and factual.`,
       `The team takes a request from idea to approved code in this repository. Members don't take each other's claims on trust: they verify by reading code and running things.`,
     ].join('\n\n'),
-    fillNames(loadPlaybook(root, role), names).trim(),
+    fillNames(selectMode(loadPlaybook(root, role), mode), names).trim(),
   ];
 
   const guidance = packGuidance(ctx.packs, role);

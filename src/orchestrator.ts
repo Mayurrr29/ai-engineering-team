@@ -75,6 +75,8 @@ const STEP_TITLES: Record<Exclude<Step, 'done'>, string> = {
 };
 
 const SEVERITY_ORDER: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+/** Which section of the team lead's playbook each of his steps needs. */
+const LEAD_MODES: Partial<Record<Step, string>> = { plan: 'Mission planning', arbitrate: 'Arbitration', debrief: 'Debrief' };
 const READ: Access = { read: true, run: false, write: 'none' };
 const NONE: Access = { read: false, run: false, write: 'none' };
 const WRITE: Access = { read: true, run: true, write: 'repo' };
@@ -105,7 +107,8 @@ export class Orchestrator {
     const state = newRunState(feature, this.config.mode as Mode, this.config.maxIterations, { budgetUsd: opts.budgetUsd ?? this.config.budgetUsd });
     const store = RunStore.create(this.root, state);
     this.setupGit(store);
-    if (!this.config.checks.length || !this.config.baselineChecks) state.next = 'plan';
+    // Planning is read-only, so the baseline can wait until we know the mission changes code at all.
+    state.next = 'plan';
     store.save();
     return this.drive(store);
   }
@@ -213,7 +216,11 @@ export class Orchestrator {
     } else {
       this.ui.log('ok', `Baseline: ${results.map((r) => r.name).join(', ')} all passing`);
     }
-    state.next = 'plan';
+    state.next = this.firstWorkStep(state);
+  }
+
+  private firstWorkStep(state: RunState): Step {
+    return state.lineup.pm === 'full' ? 'pm' : state.lineup.architect === 'full' ? 'design' : 'develop';
   }
 
   private async stepPlan(store: RunStore) {
@@ -251,7 +258,7 @@ export class Orchestrator {
       this.ui.log('warn', `Estimated $${estimate.toFixed(2)} vs budget $${state.budgetUsd.toFixed(2)}. ${plan.budgetNote}`, 'lead');
     }
     store.writeArtifact('plan', 'mission-plan.md', renderPlan(plan, state, this.names));
-    state.next = state.lineup.pm === 'full' ? 'pm' : state.lineup.architect === 'full' ? 'design' : 'develop';
+    state.next = this.config.checks.length && this.config.baselineChecks && !state.baseline ? 'baseline' : this.firstWorkStep(state);
   }
 
   /** Questions and planning requests end with an answer or a plan: no developer, no code gate. */
@@ -977,6 +984,10 @@ export class Orchestrator {
       if (remaining <= 0.005) throw new BudgetExhausted();
       maxBudgetUsd = Math.min(maxBudgetUsd ?? Infinity, remaining);
     }
+    // A resumed session reports (and caps) its cost cumulatively, so its earlier spending is counted on top.
+    const resumed = opts.resumeSessionId ? Object.values(state.sessions ?? {}).find((s) => s?.id === opts.resumeSessionId) : undefined;
+    const priorSessionCost = resumed?.costUsd ?? 0;
+    if (maxBudgetUsd !== undefined && Number.isFinite(maxBudgetUsd)) maxBudgetUsd += priorSessionCost;
     const effort = opts.effort ?? state.effort[role];
     const before = opts.readOnlyRepo && state.baseCommit ? git.snapshotTree(this.root) : undefined;
     this.ui.member(role, 'working', opts.detail);
@@ -991,7 +1002,7 @@ export class Orchestrator {
       result = await provider.run({
         role,
         member: this.name(role),
-        systemPrompt: buildSystemPrompt(this.root, role, this.ctx, opts.access.write !== 'none'),
+        systemPrompt: buildSystemPrompt(this.root, role, this.ctx, opts.access.write !== 'none', role === 'lead' ? LEAD_MODES[step] : undefined),
         prompt,
         outputSchema: toJsonSchema(schema),
         access: opts.access,
@@ -1005,13 +1016,13 @@ export class Orchestrator {
         onActivity: (line) => this.ui.activity(role, line),
       });
     } catch (err) {
-      record(false, err instanceof AgentError ? err.costUsd : 0, 0);
+      record(false, err instanceof AgentError ? Math.max(0, err.costUsd - priorSessionCost) : 0, 0);
       this.ui.member(role, 'failed', (err as Error).message.slice(0, 80));
       throw err;
     }
-    record(true, result.costUsd, result.turns, result.tokens);
+    record(true, Math.max(0, result.costUsd - priorSessionCost), result.turns, result.tokens);
     // Writers' sessions can be continued later (rework, fixes); their code revision is set once the change is counted.
-    if (result.sessionId && opts.access.write === 'repo') (state.sessions ??= {})[role] = { id: result.sessionId, codeVersion: state.codeVersion + 1 };
+    if (result.sessionId && opts.access.write === 'repo') (state.sessions ??= {})[role] = { id: result.sessionId, codeVersion: state.codeVersion + 1, costUsd: result.costUsd };
     if (before) this.undoStrayEdits(store, role, before);
     const parsed = schema.safeParse(result.output);
     if (!parsed.success) {

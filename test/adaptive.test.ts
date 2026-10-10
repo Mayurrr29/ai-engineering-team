@@ -338,3 +338,53 @@ test('the HTML report renders answers and the team ledger', async () => {
   assert.match(html, /ANSWERED/);
   assert.match(html, /Answer from JARVIS/);
 });
+
+test('questions skip the baseline checks; builds still run them before any code changes', async () => {
+  const { root } = gitProject();
+  initProject(root);
+  const checks = [{ name: 'test', command: `node -e "require('fs').appendFileSync('.ai-team/check-runs', 'x')"` }];
+  const ask = new MockProvider({ lead: [plan({ taskType: 'question', answer: 'Here.' })] });
+  await new Orchestrator({ root, config: config({ checks, baselineChecks: true }), provider: ask }).build('Where?');
+  assert.equal(fs.existsSync(path.join(root, '.ai-team/check-runs')), false);
+
+  const build = new MockProvider({ lead: [plan()], developer: [() => (fs.writeFileSync(path.join(root, 'src/app.js'), 'export const a = 2;\n'), dev())] });
+  const out = await new Orchestrator({ root, config: config({ checks, baselineChecks: true }), provider: build }).build('Change a');
+  assert.equal(out.state.status, 'approved');
+  assert.equal(fs.readFileSync(path.join(root, '.ai-team/check-runs'), 'utf8'), 'xx', 'baseline + after the change');
+  assert.equal(out.state.baseline?.results.length, 1);
+});
+
+test('cost: a resumed session is charged only for its new work, not again for what it cost before', async () => {
+  const { root } = gitProject();
+  initProject(root);
+  let n = 1;
+  const provider = new MockProvider(
+    {
+      lead: [plan({ size: 'S', lineup: { pm: 'off', architect: 'off', qa: 'light', security: 'off', reviewer: 'off' } })],
+      developer: [() => (fs.writeFileSync(path.join(root, 'src/app.js'), `export const a = ${++n};\n`), dev('built', ['src/app.js'])), () => (fs.writeFileSync(path.join(root, 'src/app.js'), `export const a = ${++n};\n`), fix())],
+      qa: [qaFail(), qaPass()],
+    },
+    0.1,
+  );
+  const out = await new Orchestrator({ root, config: config(), provider }).build('Change a');
+  assert.equal(out.state.status, 'approved');
+  assert.deepEqual(out.state.calls.map((c) => [c.role, c.step, Math.round(c.costUsd * 100) / 100]), [
+    ['lead', 'plan', 0.1],
+    ['developer', 'develop', 0.1],
+    ['qa', 'qa', 0.1],
+    ['developer', 'fix', 0.1],
+    ['qa', 'qa', 0.1],
+    ['lead', 'debrief', 0.1], // there was a fix round, so there is something to learn
+  ]);
+  assert.ok(Math.abs(out.state.costUsd - 0.6) < 1e-9);
+});
+
+test("the team lead's prompt carries only the mode he is working in", async () => {
+  const root = gitProject().root;
+  initProject(root);
+  const provider = new MockProvider({ lead: [plan()], developer: [() => (fs.writeFileSync(path.join(root, 'src/app.js'), 'export const a = 2;\n'), dev())] });
+  await new Orchestrator({ root, config: config(), provider }).build('Change a');
+  const system = provider.calls[0].systemPrompt;
+  assert.match(system, /## Mode: Mission planning/);
+  assert.doesNotMatch(system, /## Mode: Arbitration|## Mode: Debrief|## Mode: Onboarding/);
+});
