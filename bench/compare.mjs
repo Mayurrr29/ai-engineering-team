@@ -29,7 +29,10 @@ const team = (lineup) => {
 
 const lines = ['# Proving Ground results', '', `Generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC. Hidden tests are never shown to the team; they check the traps described in [docs/research.md](../docs/research.md).`, ''];
 
-lines.push('## Totals', '', '| Contender | Hidden tests passed | Visible tests | AI cost | Wall time | Missions approved |', '|---|---|---|---|---|---|');
+const kTok = (n) => `${Math.round(n / 1000)}k`;
+const tokenSum = (runs, key) => runs.reduce((s, r) => s + (r.tokens?.[key] ?? 0), 0);
+
+lines.push('## Totals', '', '| Contender | Hidden tests passed | Visible tests | AI cost | Tokens out · cache-write · cache-read | Calls | Wall time | Missions approved |', '|---|---|---|---|---|---|---|---|');
 for (const d of data) {
   const hp = d.runs.reduce((s, r) => s + r.hidden.passed, 0);
   const ht = d.runs.reduce((s, r) => s + r.hidden.total, 0);
@@ -39,7 +42,10 @@ for (const d of data) {
   const onboarding = d.runs.reduce((s, r) => s + (r.onboardingCostUsd ?? 0), 0);
   const mins = d.runs.reduce((s, r) => s + r.wallMinutes, 0);
   const approved = d.runs.filter((r) => r.status === 'approved' || r.status === 'done').length;
-  lines.push(`| **${d.label}** | ${hp}/${ht} (${pct(hp, ht)}) | ${vp}/${vt} | $${cost.toFixed(2)}${onboarding ? ` (+$${onboarding.toFixed(2)} onboarding)` : ''} | ${mins.toFixed(1)} min | ${approved}/${d.runs.length} |`);
+  const hasTokens = d.runs.some((r) => r.tokens);
+  const tokens = hasTokens ? `${kTok(tokenSum(d.runs, 'output'))} · ${kTok(tokenSum(d.runs, 'cacheWrite'))} · ${kTok(tokenSum(d.runs, 'cacheRead'))}` : '-';
+  const calls = d.runs.some((r) => r.calls) ? d.runs.reduce((s, r) => s + (r.calls?.length ?? 0), 0) : '-';
+  lines.push(`| **${d.label}** | ${hp}/${ht} (${pct(hp, ht)}) | ${vp}/${vt} | $${cost.toFixed(2)}${onboarding ? ` (+$${onboarding.toFixed(2)} onboarding)` : ''} | ${tokens} | ${calls} | ${mins.toFixed(1)} min | ${approved}/${d.runs.length} |`);
 }
 
 for (const scenario of scenarios) {

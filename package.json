@@ -1,6 +1,6 @@
 {
   "name": "ai-engineering-team",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "An AI engineering team for your repo, led by JARVIS: it sizes each task, staffs PM, architect, developer, QA, bug fixer, security and code review as needed, enforces code-level gates, and produces a visual mission report.",
   "homepage": "https://github.com/Mayurrr29/ai-engineering-team#readme",
   "repository": {

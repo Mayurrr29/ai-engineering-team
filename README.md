@@ -25,6 +25,17 @@ ai-team build "Allow instructors to create discount coupons for their courses"
 
 Rename anyone: `"team": { "names": { "developer": "Chitti" } }` in `.ai-team/config.json`.
 
+## Not every request is a build
+
+JARVIS first works out what you actually want:
+
+| You ask | What happens |
+|---|---|
+| a question — *"How does auth work here?"* | JARVIS (or DATA, for deeper questions) answers with `file:line` evidence, right in the terminal. Nothing is changed and no tests run; usually one AI call. |
+| for a plan — *"Plan how we'd add multi-currency pricing"* | DATA writes the design: decisions with trade-offs, data model, API, risks and ordered milestones. Nothing is built. |
+| to fix a bug — *"Page 1 never shows the oldest orders"* | FRIDAY works in debugging mode: reproduce with a failing test, confirm the root cause, fix, prove it. |
+| for a change | A build mission, sized as below. |
+
 ## JARVIS keeps small tasks small
 
 Multi-agent work costs many times more than a single agent, so JARVIS sizes every mission first and staffs only what it needs:
@@ -40,6 +51,10 @@ Multi-agent work costs many times more than a single agent, so JARVIS sizes ever
 He also sets each member's **effort** (how hard they think) per mission, and you can cap spending: `ai-team build "…" --budget 3` pauses the mission (resumable) instead of overspending.
 
 **Guardrails JARVIS can't override.** After every code change, plain code measures the real diff. If it's bigger than planned, touches security-sensitive code (auth, payments, uploads, secrets) or changes dependencies, the reviewers join automatically. Cutting cost never skips a check the change actually needs.
+
+**The team can grow mid-mission.** A role is expertise, not a limit on what someone may notice. Any member can raise a *signal*: a **concern** for a teammate (EVE challenging the design, FRIDAY doubting the spec), an **assumption** they made (so testers don't report it as a bug), a **recruit** request (*"this needs a security review"* — the member joins), a **blocker** (JARVIS rules on it), or a **question** for you (asked once, only when it materially changes the result — and if your answer differs from the default, the work goes back). Each member sees only what's meant for them.
+
+**Loops are cheap.** FRIDAY fixes what QA finds in her own session (she already knows the code, and her context is cached); BAYMAX steps in with fresh eyes when JARVIS asks for a different approach. Re-tests and re-reviews look only at what changed since the member last looked.
 
 ## The team writes its own rules
 
@@ -85,7 +100,8 @@ It works in light and dark mode. Every mission also leaves Markdown artifacts in
 - **Report everything, filter in code.** Reviewers report every issue with an honest severity; HAL blocks on CRITICAL/HIGH/MEDIUM. (Asking a model to "only report important issues" makes it report less.)
 - **Checks run by the orchestrator**: lint, typecheck, tests and build, both *before* the mission (so failures that already existed aren't blamed on the team) and after every change. Agents can't fake them.
 - **Fresh verdicts only.** Every verdict is tied to the code revision it judged; a later change invalidates it.
-- **Least privilege, enforced by code.** Read-only members can't edit; EVE writes only in her scratch lab; nobody touches `.ai-team/` or `.git/`.
+- **Done means done.** A successful agent response isn't proof. HAL fails the mission when the developer reported an acceptance criterion as partial, when a part of the system JARVIS planned (frontend, tests, docs) wasn't touched, when nothing changed at all, or when a blocker is still open — and the orchestrator sends such work back *before* anyone spends money testing it.
+- **Least privilege, enforced by code.** Read-only members can't edit; EVE writes only in her scratch lab; nobody touches `.ai-team/` or `.git/`. QA needs a shell to run tests, so after every read-only member's turn the orchestrator compares the working tree with a snapshot and puts back anything they changed.
 - **Bounded loops and a real lead.** Fix rounds are capped. When a bug keeps coming back or a fixer disputes it, JARVIS rules: fix it differently, waive it (only MEDIUM/LOW), or escalate to you.
 - **Resumable.** Crash, Ctrl+C or budget pause → `ai-team resume`.
 
@@ -115,14 +131,14 @@ node bench/compare.mjs
 |---|---|
 | `ai-team init` | Scaffold `.ai-team/` and let JARVIS onboard (`--skip-onboarding` to skip) |
 | `ai-team onboard` | Re-study the codebase; refresh the project profile, rules and notes |
-| `ai-team build "<request>"` | Run a mission. Options: `--budget <usd>`, `--quick`, `--full`, `--yes`, `--git`, `--max-iterations <n>`, `--model <id>`, `--quiet`, `--no-live`, `--no-open` |
+| `ai-team build "<request>"` | Run a mission — a question, a plan, a bug fix or a change. Options: `--budget <usd>`, `--quick`, `--full`, `--yes`, `--git`, `--max-iterations <n>`, `--model <id>`, `--quiet`, `--no-live`, `--no-open` |
 | `ai-team resume [id]` | Continue a paused or failed mission (`--budget` raises the limit) |
 | `ai-team status [id]` · `ai-team runs` | Mission status · list of missions |
 | `ai-team report [id]` | Open the visual mission report |
 | `ai-team team` | Meet the team |
 | `ai-team doctor` | Check Node, config, checks, onboarding and Claude access |
 
-When VISION finds a real product question she asks you (`Q-2: Can coupons stack? [Enter = no]`); `--yes` accepts the proposed defaults.
+When a member finds a real product question they ask you (`Q-2: Can coupons stack? [Enter = no]`); `--yes` accepts the proposed defaults. Answers, solo changes and plans finish in the terminal; the HTML mission report opens for team missions and plans.
 
 ## Configuration — `.ai-team/config.json`
 
@@ -137,6 +153,7 @@ When VISION finds a real product question she asks you (`Q-2: Can coupons stack?
   "models": { "reviewer": "claude-opus-5-5" },  // optional per-role model
   "effort": { "security": "high" },             // optional per-role effort override
   "guardrails": { "soloMaxChangedLines": 40, "soloMaxFiles": 3, "sensitivePaths": [] },
+  "loop": { "deferNewIssuesFromRound": 3, "fixer": "auto" },  // "bugFixer": BAYMAX fixes every QA finding
   "rules": { "autoLearn": true, "maxLearned": 40 },
   "git": { "branch": false, "commit": false },  // or --git
   "ui": { "live": true, "emoji": true, "openReport": true },

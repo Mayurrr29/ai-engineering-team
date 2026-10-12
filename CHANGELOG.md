@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0
+
+The team adapts to the task, tells the truth about "done", and spends less on loops. See `docs/architecture.md` for the audit and the measurements behind each change.
+
+- **Not every request is a build.** JARVIS classifies questions (answered with evidence, usually in one call, nothing changed, no tests run), planning requests (DATA writes decisions and milestones; nothing built) and bug reports (FRIDAY works in debugging mode: reproduce, confirm the root cause, fix, prove).
+- **Done means done.** HAL now fails a mission when the developer reported an acceptance criterion as partial or not done, when a surface JARVIS planned (frontend, tests, docs) wasn't touched, when a build changed no code, or when a blocker is still open. The orchestrator sends such work back before it is tested or reviewed. Bug fixes without a test change get a warning.
+- **Read-only really means read-only.** QA has a shell, so the write hook alone couldn't stop edits made through it. After every read-only member's turn the orchestrator compares the working tree with a snapshot (a git tree written through a throwaway index — your index and files are untouched) and restores anything they changed.
+- **Signals: the team talks.** Any member can raise a concern, an assumption, a recruit request (adds a member), a blocker (goes to JARVIS) or a question for the human (asked once; an answer that differs from the default reopens the work). Each member's prompt gets only the entries meant for them.
+- **The team can grow mid-mission**, and an approval that still covers the current code is not re-run.
+- **Cheaper loops.** FRIDAY fixes QA's findings in her own resumed session; BAYMAX takes over with fresh eyes when JARVIS asks for a different approach (`loop.fixer`). Rework resumes her session too. Re-tests and re-reviews get only the change since the member last looked.
+- **Leaner calls.** JARVIS's prompt carries only the mode he is in; tool-less calls skip the Claude Code preset; the AI debrief runs only when there is something to learn; EVE keeps passing scenarios to one line; JARVIS's key files reach FRIDAY.
+- **Output that fits the task.** Answers print in the terminal; solo approvals are one line; the HTML report opens for team missions and plans.
+- **Fixes:** a resumed session's cumulative cost is no longer double-counted; agents launched from inside Claude Code no longer share the parent's session id; baseline checks run after planning.
+- **Measurement:** every call records its tokens; the Proving Ground saves per-call data, supports `setup/` overlays, and has a new debugging scenario (`05-debug-pagination`).
+- Schema additions (custom providers must return them): `MissionPlan.answer`, `MissionPlan.taskType` `question`/`planning`, `DesignOutput.milestones`, `DevOutput.rootCause`, and `signals` on developer, fix, QA and review outputs. New run statuses `answered` and `planned`.
+
 ## 0.2.0
 
 The team gets a lead, names, research-based playbooks, its own rules, and a face.
