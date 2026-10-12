@@ -1,0 +1,48 @@
+{
+  "scenario": "03-user-search",
+  "label": "solo-baseline",
+  "task": "Add an admin-only user search: `GET /users?search=<text>&page=<n>&limit=<n>` returns users whose name or email contains the search text, as `{ data: users, page, limit, total }`.",
+  "at": "2026-10-10T02:43:28.460Z",
+  "exitCodes": {},
+  "status": "done",
+  "costUsd": 0.1,
+  "onboardingCostUsd": 0,
+  "iterations": null,
+  "lineup": "solo agent",
+  "wallMinutes": 0.5,
+  "hidden": {
+    "passed": 10,
+    "total": 10,
+    "failures": []
+  },
+  "visible": {
+    "passed": 19,
+    "total": 19,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "test/users.test.js"
+  ],
+  "tokens": {
+    "input": 14,
+    "output": 2790,
+    "cacheRead": 85905,
+    "cacheWrite": 13797
+  },
+  "calls": [
+    {
+      "role": "solo",
+      "step": "solo",
+      "costUsd": 0.1,
+      "ms": 29948,
+      "turns": 8,
+      "tokens": {
+        "input": 14,
+        "output": 2790,
+        "cacheRead": 85905,
+        "cacheWrite": 13797
+      }
+    }
+  ]
+}

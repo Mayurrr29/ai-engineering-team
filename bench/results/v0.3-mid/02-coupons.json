@@ -1,0 +1,305 @@
+{
+  "scenario": "02-coupons",
+  "label": "v0.3-adaptive",
+  "task": "Instructors can create discount coupons for their own courses, and students can apply a coupon code when buying a course.\n\n- `POST /courses/:id/coupons` with `{ code, percentOff, expiresAt?, maxRedemptions? }` creates a coupon and returns `201 { data: coupon }`.\n- `POST /orders` accepts an optional `couponCode`; when a valid coupon is applied, the order `amount` is discounted.",
+  "at": "2026-10-10T03:18:24.730Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 4.2,
+  "onboardingCostUsd": 0.21,
+  "iterations": 3,
+  "lineup": {
+    "pm": "off",
+    "architect": "off",
+    "qa": "full",
+    "security": "full",
+    "reviewer": "full"
+  },
+  "wallMinutes": 12.4,
+  "hidden": {
+    "passed": 13,
+    "total": 13,
+    "failures": []
+  },
+  "visible": {
+    "passed": 44,
+    "total": 44,
+    "failures": []
+  },
+  "filesChanged": [
+    "README.md",
+    "src/db.js",
+    "src/routes/courses.js",
+    "src/routes/orders.js",
+    "src/seed.js",
+    "src/validate.js",
+    "test/coupons.test.js"
+  ],
+  "tokens": {
+    "input": 136,
+    "output": 102776,
+    "cacheRead": 1692497,
+    "cacheWrite": 336596
+  },
+  "calls": [
+    {
+      "role": "lead",
+      "step": "plan",
+      "costUsd": 0.08,
+      "ms": 17393,
+      "turns": 5,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 2038,
+        "cacheRead": 35768,
+        "cacheWrite": 12078
+      }
+    },
+    {
+      "role": "developer",
+      "step": "develop",
+      "costUsd": 0.3,
+      "ms": 82172,
+      "turns": 8,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 14,
+        "output": 12752,
+        "cacheRead": 164002,
+        "cacheWrite": 34887
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.43,
+      "ms": 139981,
+      "turns": 10,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 16,
+        "output": 21271,
+        "cacheRead": 274121,
+        "cacheWrite": 39541
+      }
+    },
+    {
+      "role": "developer",
+      "step": "fix",
+      "costUsd": 0.53,
+      "ms": 32268,
+      "turns": 5,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 8,
+        "output": 4206,
+        "cacheRead": 112025,
+        "cacheWrite": 40601
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.17,
+      "ms": 49956,
+      "turns": 7,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 12,
+        "output": 6671,
+        "cacheRead": 140574,
+        "cacheWrite": 17445
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.13,
+      "ms": 31347,
+      "turns": 5,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 3853,
+        "cacheRead": 50485,
+        "cacheWrite": 20317
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.19,
+      "ms": 52153,
+      "turns": 7,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 6573,
+        "cacheRead": 56918,
+        "cacheWrite": 28832
+      }
+    },
+    {
+      "role": "developer",
+      "step": "rework",
+      "costUsd": 0.65,
+      "ms": 41202,
+      "turns": 3,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 5521,
+        "cacheRead": 79630,
+        "cacheWrite": 13715
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.21,
+      "ms": 63795,
+      "turns": 8,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 12,
+        "output": 9362,
+        "cacheRead": 149693,
+        "cacheWrite": 21007
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.08,
+      "ms": 21134,
+      "turns": 5,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 2644,
+        "cacheRead": 29099,
+        "cacheWrite": 11206
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.12,
+      "ms": 34271,
+      "turns": 6,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 4231,
+        "cacheRead": 56854,
+        "cacheWrite": 16045
+      }
+    },
+    {
+      "role": "lead",
+      "step": "arbitrate",
+      "costUsd": 0.09,
+      "ms": 13908,
+      "turns": 4,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1491,
+        "cacheRead": 15269,
+        "cacheWrite": 17355
+      }
+    },
+    {
+      "role": "developer",
+      "step": "rework",
+      "costUsd": 0.8,
+      "ms": 39179,
+      "turns": 6,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 10,
+        "output": 5557,
+        "cacheRead": 264619,
+        "cacheWrite": 9160
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.15,
+      "ms": 45151,
+      "turns": 6,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 10,
+        "output": 6198,
+        "cacheRead": 114295,
+        "cacheWrite": 17042
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.11,
+      "ms": 28926,
+      "turns": 6,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 8,
+        "output": 4303,
+        "cacheRead": 72069,
+        "cacheWrite": 13286
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.11,
+      "ms": 33133,
+      "turns": 7,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 8,
+        "output": 4139,
+        "cacheRead": 76183,
+        "cacheWrite": 12932
+      }
+    },
+    {
+      "role": "lead",
+      "step": "debrief",
+      "costUsd": 0.06,
+      "ms": 16374,
+      "turns": 2,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 2,
+        "output": 1966,
+        "cacheRead": 893,
+        "cacheWrite": 11147
+      }
+    }
+  ],
+  "mode": "feature"
+}

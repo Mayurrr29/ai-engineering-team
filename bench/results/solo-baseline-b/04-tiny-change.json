@@ -1,0 +1,48 @@
+{
+  "scenario": "04-tiny-change",
+  "label": "solo-baseline-b",
+  "task": "Change the generic 404 message for unknown routes from \"Not found\" to \"Resource not found\".",
+  "at": "2026-10-10T03:21:03.961Z",
+  "exitCodes": {},
+  "status": "done",
+  "costUsd": 0.02,
+  "onboardingCostUsd": 0,
+  "iterations": null,
+  "lineup": "solo agent",
+  "wallMinutes": 0.2,
+  "hidden": {
+    "passed": 3,
+    "total": 3,
+    "failures": []
+  },
+  "visible": {
+    "passed": 15,
+    "total": 15,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/errors.js",
+    "test/app.test.js"
+  ],
+  "tokens": {
+    "input": 10,
+    "output": 656,
+    "cacheRead": 37169,
+    "cacheWrite": 2644
+  },
+  "calls": [
+    {
+      "role": "solo",
+      "step": "solo",
+      "costUsd": 0.02,
+      "ms": 13235,
+      "turns": 5,
+      "tokens": {
+        "input": 10,
+        "output": 656,
+        "cacheRead": 37169,
+        "cacheWrite": 2644
+      }
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "scenario": "05-debug-pagination",
+  "label": "v0.3-adaptive",
+  "task": "Bug report from the support team: the admin order list (`GET /admin/orders?page=&limit=`) is unreliable. Admins say page 1 never shows the oldest orders, and some page/limit values return strange results — once the whole orders table came back in a single response. Find the root cause, fix it, and make sure bad paging input can't do this again. Don't change the response shape.",
+  "at": "2026-10-10T03:12:25.378Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 0.44,
+  "onboardingCostUsd": 0.18,
+  "iterations": 0,
+  "lineup": {
+    "pm": "off",
+    "architect": "off",
+    "qa": "off",
+    "security": "light",
+    "reviewer": "light"
+  },
+  "wallMinutes": 2.9,
+  "hidden": {
+    "passed": 15,
+    "total": 15,
+    "failures": []
+  },
+  "visible": {
+    "passed": 21,
+    "total": 21,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/admin.js",
+    "test/admin.test.js"
+  ],
+  "tokens": {
+    "input": 34,
+    "output": 12365,
+    "cacheRead": 248982,
+    "cacheWrite": 67303
+  },
+  "calls": [
+    {
+      "role": "lead",
+      "step": "plan",
+      "costUsd": 0.06,
+      "ms": 11417,
+      "turns": 3,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1280,
+        "cacheRead": 19966,
+        "cacheWrite": 11370
+      }
+    },
+    {
+      "role": "developer",
+      "step": "develop",
+      "costUsd": 0.16,
+      "ms": 43781,
+      "turns": 11,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 16,
+        "output": 5323,
+        "cacheRead": 154096,
+        "cacheWrite": 18059
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.07,
+      "ms": 11338,
+      "turns": 3,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1105,
+        "cacheRead": 19934,
+        "cacheWrite": 12457
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.1,
+      "ms": 24303,
+      "turns": 6,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 8,
+        "output": 3251,
+        "cacheRead": 54093,
+        "cacheWrite": 14474
+      }
+    },
+    {
+      "role": "lead",
+      "step": "debrief",
+      "costUsd": 0.06,
+      "ms": 11481,
+      "turns": 2,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 2,
+        "output": 1406,
+        "cacheRead": 893,
+        "cacheWrite": 10943
+      }
+    }
+  ],
+  "mode": "bugfix"
+}

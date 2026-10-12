@@ -1,0 +1,50 @@
+{
+  "scenario": "01-profile-update",
+  "label": "solo-baseline-b",
+  "task": "Let users update their profile: add `PATCH /users/:id` that accepts `name` and `email` in the JSON body and returns the updated user as `{ data: user }`. Users can update their own profile; admins can update anyone's.",
+  "at": "2026-10-10T03:20:38.934Z",
+  "exitCodes": {},
+  "status": "done",
+  "costUsd": 0.09,
+  "onboardingCostUsd": 0,
+  "iterations": null,
+  "lineup": "solo agent",
+  "wallMinutes": 0.5,
+  "hidden": {
+    "passed": 14,
+    "total": 15,
+    "failures": [
+      "a crafted email cannot stall the server (ReDoS)"
+    ]
+  },
+  "visible": {
+    "passed": 20,
+    "total": 20,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "test/users.test.js"
+  ],
+  "tokens": {
+    "input": 14,
+    "output": 2823,
+    "cacheRead": 86885,
+    "cacheWrite": 12230
+  },
+  "calls": [
+    {
+      "role": "solo",
+      "step": "solo",
+      "costUsd": 0.09,
+      "ms": 31408,
+      "turns": 7,
+      "tokens": {
+        "input": 14,
+        "output": 2823,
+        "cacheRead": 86885,
+        "cacheWrite": 12230
+      }
+    }
+  ]
+}

@@ -84,7 +84,28 @@ See `bench/RESULTS.md` (generated) and the summary in section 6. Conditions: sam
 
 ## 6. Results and trade-offs
 
-_Filled in from the Proving Ground runs below._
+Five scenarios (tiny change, user search, profile update with a ReDoS trap, coupons with a race, and the new symptom-only debugging task), same container, same day, default model, `--yes`. Raw data: `bench/results/`, table: `bench/RESULTS.md`.
+
+| Contender (runs) | Hidden tests | AI cost per 5-scenario round | Calls | Notes |
+|---|---|---|---|---|
+| Solo Claude Code (2 rounds) | 55/56 · 55/56 | $0.47 · $0.43 | 5 | missed the ReDoS trap both times |
+| v0.2.2 team (2 rounds) | 56/56 · 56/56 | $4.36 · $4.42 | 35 · 36 | + ~$1.10 onboarding each |
+| v0.3, mid-development commit (1 round) | 56/56 | $6.19 | 38 | coupons took 3 fix rounds, $4.20 |
+| **v0.3 final (1 round)** | **56/56** | **$3.98** | **33** | + $1.20 onboarding |
+
+Per scenario, v0.2.2 (two rounds) vs v0.3 final: tiny $0.12/$0.13 vs $0.13; search $0.63/$0.68 vs $0.67; profile $0.94/$0.66 vs $0.81; debugging $0.43/$0.52 vs $0.44; coupons $2.24/$2.43 vs $1.93.
+
+**What the data supports**
+- **Quality is unchanged, not improved.** Every team version passed every hidden test; solo missed the same one twice. The benchmark can't show a quality gain because the old team was already at the ceiling on these tasks.
+- **Cost: roughly 10% lower, and that is within noise.** The two v0.2.2 rounds differ by only $0.06, but the one v0.3 mid-development round was 40% *higher* than they were, entirely from one coupons run with extra rework rounds. One v0.3 round is not enough to claim a saving. Fewer calls (33 vs 35–36) and fewer output and cache-write tokens (117k/587k vs 139–145k/622k) point the right way.
+- **The team still costs about 9× solo** ($4.0–4.4 vs $0.43–0.47 per round). The team's measured edge remains the ReDoS catch on one scenario. This work did not change that trade-off, and I'm not claiming it did.
+- **The debugging scenario was solved by everyone** (solo too, at $0.09 vs $0.44–0.52). A symptom-level bug in a 20-line route is too easy to separate the contenders; it would need a harder bug (cross-module, intermittent) to discriminate.
+
+**What the benchmark does *not* cover** (verified by unit tests with scripted providers, not by live measurement): the question and planning modes (one live smoke run each: a question answered for $0.10 in one call, a four-milestone plan for $0.38), the completeness gate, mid-mission recruiting, human questions and blockers, session resume in rework and fix rounds, and restoring stray edits. The old version has no equivalent path for the first two, so there is no like-for-like baseline.
+
+**Invalid runs, excluded.** A first attempt at the final round hit the account's session limit mid-run ("session limit reached", $0 cost). Those results were discarded and the affected scenarios re-run after the limit reset; one extra round of v0.3 (`v0.3-final-b`, four of five runs invalidated) is not included.
+
+**Trade-offs.** Fix rounds now continue the developer's session: cheaper per round, but she fixes her own work, which is less independent than BAYMAX's fresh eyes (`loop.fixer: "bugFixer"` restores that; JARVIS's rulings still bring BAYMAX in). The completeness gate can send work back for a legitimately empty change or an untouched planned surface; JARVIS can waive those with evidence, which costs a call.
 
 ## 7. Open risks and next steps
 

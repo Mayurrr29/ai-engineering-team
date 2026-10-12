@@ -1,0 +1,200 @@
+{
+  "scenario": "02-coupons",
+  "label": "v0.3-final-a",
+  "task": "Instructors can create discount coupons for their own courses, and students can apply a coupon code when buying a course.\n\n- `POST /courses/:id/coupons` with `{ code, percentOff, expiresAt?, maxRedemptions? }` creates a coupon and returns `201 { data: coupon }`.\n- `POST /orders` accepts an optional `couponCode`; when a valid coupon is applied, the order `amount` is discounted.",
+  "at": "2026-10-12T17:30:34.776Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 1.93,
+  "onboardingCostUsd": 0.26,
+  "iterations": 2,
+  "lineup": {
+    "pm": "full",
+    "architect": "off",
+    "qa": "full",
+    "security": "full",
+    "reviewer": "full"
+  },
+  "wallMinutes": 9.5,
+  "hidden": {
+    "passed": 13,
+    "total": 13,
+    "failures": []
+  },
+  "visible": {
+    "passed": 36,
+    "total": 36,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/db.js",
+    "src/routes/courses.js",
+    "src/routes/orders.js",
+    "src/seed.js",
+    "src/serializers.js",
+    "test/courses.test.js",
+    "test/orders.test.js"
+  ],
+  "tokens": {
+    "input": 80,
+    "output": 64868,
+    "cacheRead": 1012200,
+    "cacheWrite": 268174
+  },
+  "calls": [
+    {
+      "role": "lead",
+      "step": "plan",
+      "costUsd": 0.12,
+      "ms": 26780,
+      "turns": 7,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 8,
+        "output": 3802,
+        "cacheRead": 45988,
+        "cacheWrite": 18164
+      }
+    },
+    {
+      "role": "pm",
+      "step": "pm",
+      "costUsd": 0.17,
+      "ms": 52978,
+      "turns": 8,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 7240,
+        "cacheRead": 32332,
+        "cacheWrite": 22498
+      }
+    },
+    {
+      "role": "developer",
+      "step": "develop",
+      "costUsd": 0.33,
+      "ms": 89744,
+      "turns": 12,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 18,
+        "output": 14151,
+        "cacheRead": 243962,
+        "cacheWrite": 35092
+      }
+    },
+    {
+      "role": "developer",
+      "step": "rework",
+      "costUsd": 0.05,
+      "ms": 16447,
+      "turns": 3,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1672,
+        "cacheRead": 86347,
+        "cacheWrite": 4034
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.35,
+      "ms": 106116,
+      "turns": 7,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 12,
+        "output": 13761,
+        "cacheRead": 209946,
+        "cacheWrite": 42412
+      }
+    },
+    {
+      "role": "developer",
+      "step": "fix",
+      "costUsd": 0.24,
+      "ms": 27560,
+      "turns": 4,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 3079,
+        "cacheRead": 90490,
+        "cacheWrite": 47639
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.17,
+      "ms": 48865,
+      "turns": 6,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 10,
+        "output": 7012,
+        "cacheRead": 127572,
+        "cacheWrite": 18463
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.22,
+      "ms": 41866,
+      "turns": 7,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 8,
+        "output": 5731,
+        "cacheRead": 104634,
+        "cacheWrite": 35199
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.23,
+      "ms": 53758,
+      "turns": 8,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 6581,
+        "cacheRead": 70036,
+        "cacheWrite": 36282
+      }
+    },
+    {
+      "role": "lead",
+      "step": "debrief",
+      "costUsd": 0.05,
+      "ms": 15841,
+      "turns": 2,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 2,
+        "output": 1839,
+        "cacheRead": 893,
+        "cacheWrite": 8391
+      }
+    }
+  ],
+  "mode": "feature"
+}

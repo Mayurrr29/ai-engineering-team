@@ -1,0 +1,51 @@
+{
+  "scenario": "02-coupons",
+  "label": "solo-baseline",
+  "task": "Instructors can create discount coupons for their own courses, and students can apply a coupon code when buying a course.\n\n- `POST /courses/:id/coupons` with `{ code, percentOff, expiresAt?, maxRedemptions? }` creates a coupon and returns `201 { data: coupon }`.\n- `POST /orders` accepts an optional `couponCode`; when a valid coupon is applied, the order `amount` is discounted.",
+  "at": "2026-10-10T02:43:46.001Z",
+  "exitCodes": {},
+  "status": "done",
+  "costUsd": 0.15,
+  "onboardingCostUsd": 0,
+  "iterations": null,
+  "lineup": "solo agent",
+  "wallMinutes": 0.8,
+  "hidden": {
+    "passed": 13,
+    "total": 13,
+    "failures": []
+  },
+  "visible": {
+    "passed": 23,
+    "total": 23,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/db.js",
+    "src/routes/courses.js",
+    "src/routes/orders.js",
+    "src/seed.js",
+    "test/coupons.test.js"
+  ],
+  "tokens": {
+    "input": 14,
+    "output": 5662,
+    "cacheRead": 96780,
+    "cacheWrite": 17710
+  },
+  "calls": [
+    {
+      "role": "solo",
+      "step": "solo",
+      "costUsd": 0.15,
+      "ms": 45466,
+      "turns": 7,
+      "tokens": {
+        "input": 14,
+        "output": 5662,
+        "cacheRead": 96780,
+        "cacheWrite": 17710
+      }
+    }
+  ]
+}

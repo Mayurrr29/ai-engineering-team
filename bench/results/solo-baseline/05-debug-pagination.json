@@ -1,0 +1,48 @@
+{
+  "scenario": "05-debug-pagination",
+  "label": "solo-baseline",
+  "task": "Bug report from the support team: the admin order list (`GET /admin/orders?page=&limit=`) is unreliable. Admins say page 1 never shows the oldest orders, and some page/limit values return strange results — once the whole orders table came back in a single response. Find the root cause, fix it, and make sure bad paging input can't do this again. Don't change the response shape.",
+  "at": "2026-10-10T02:44:05.543Z",
+  "exitCodes": {},
+  "status": "done",
+  "costUsd": 0.09,
+  "onboardingCostUsd": 0,
+  "iterations": null,
+  "lineup": "solo agent",
+  "wallMinutes": 0.4,
+  "hidden": {
+    "passed": 15,
+    "total": 15,
+    "failures": []
+  },
+  "visible": {
+    "passed": 19,
+    "total": 19,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/admin.js",
+    "test/admin.test.js"
+  ],
+  "tokens": {
+    "input": 14,
+    "output": 2646,
+    "cacheRead": 76634,
+    "cacheWrite": 11152
+  },
+  "calls": [
+    {
+      "role": "solo",
+      "step": "solo",
+      "costUsd": 0.09,
+      "ms": 26318,
+      "turns": 8,
+      "tokens": {
+        "input": 14,
+        "output": 2646,
+        "cacheRead": 76634,
+        "cacheWrite": 11152
+      }
+    }
+  ]
+}

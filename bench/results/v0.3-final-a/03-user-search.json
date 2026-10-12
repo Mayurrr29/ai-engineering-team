@@ -1,0 +1,135 @@
+{
+  "scenario": "03-user-search",
+  "label": "v0.3-final-a",
+  "task": "Add an admin-only user search: `GET /users?search=<text>&page=<n>&limit=<n>` returns users whose name or email contains the search text, as `{ data: users, page, limit, total }`.",
+  "at": "2026-10-12T17:25:09.787Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 0.67,
+  "onboardingCostUsd": 0.26,
+  "iterations": 0,
+  "lineup": {
+    "pm": "off",
+    "architect": "off",
+    "qa": "light",
+    "security": "light",
+    "reviewer": "light"
+  },
+  "wallMinutes": 4.1,
+  "hidden": {
+    "passed": 10,
+    "total": 10,
+    "failures": []
+  },
+  "visible": {
+    "passed": 22,
+    "total": 22,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "test/users.test.js"
+  ],
+  "tokens": {
+    "input": 36,
+    "output": 15778,
+    "cacheRead": 254794,
+    "cacheWrite": 115531
+  },
+  "calls": [
+    {
+      "role": "lead",
+      "step": "plan",
+      "costUsd": 0.08,
+      "ms": 14713,
+      "turns": 4,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1643,
+        "cacheRead": 14508,
+        "cacheWrite": 15526
+      }
+    },
+    {
+      "role": "developer",
+      "step": "develop",
+      "costUsd": 0.2,
+      "ms": 44914,
+      "turns": 12,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 14,
+        "output": 5642,
+        "cacheRead": 144674,
+        "cacheWrite": 28373
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.14,
+      "ms": 28636,
+      "turns": 5,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 8,
+        "output": 3774,
+        "cacheRead": 62055,
+        "cacheWrite": 22977
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.09,
+      "ms": 15249,
+      "turns": 4,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1646,
+        "cacheRead": 16510,
+        "cacheWrite": 17130
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.11,
+      "ms": 16649,
+      "turns": 5,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1716,
+        "cacheRead": 17047,
+        "cacheWrite": 22733
+      }
+    },
+    {
+      "role": "lead",
+      "step": "debrief",
+      "costUsd": 0.05,
+      "ms": 12348,
+      "turns": 2,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 2,
+        "output": 1357,
+        "cacheRead": 0,
+        "cacheWrite": 8792
+      }
+    }
+  ],
+  "mode": "feature"
+}

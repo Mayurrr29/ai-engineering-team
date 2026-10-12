@@ -1,0 +1,196 @@
+{
+  "scenario": "01-profile-update",
+  "label": "baseline-v0.2.2",
+  "task": "Let users update their profile: add `PATCH /users/:id` that accepts `name` and `email` in the JSON body and returns the updated user as `{ data: user }`. Users can update their own profile; admins can update anyone's.",
+  "at": "2026-10-10T02:47:48.343Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 0.94,
+  "onboardingCostUsd": 0.27,
+  "iterations": 1,
+  "lineup": {
+    "pm": "off",
+    "architect": "off",
+    "qa": "light",
+    "security": "light",
+    "reviewer": "light"
+  },
+  "wallMinutes": 4.8,
+  "hidden": {
+    "passed": 15,
+    "total": 15,
+    "failures": []
+  },
+  "visible": {
+    "passed": 25,
+    "total": 25,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "src/validate.js",
+    "test/users.test.js"
+  ],
+  "tokens": {
+    "input": 66,
+    "output": 27262,
+    "cacheRead": 526717,
+    "cacheWrite": 140219
+  },
+  "calls": [
+    {
+      "role": "lead",
+      "step": "plan",
+      "costUsd": 0.08,
+      "ms": 17402,
+      "turns": 6,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 2031,
+        "cacheRead": 35824,
+        "cacheWrite": 13353
+      }
+    },
+    {
+      "role": "developer",
+      "step": "develop",
+      "costUsd": 0.14,
+      "ms": 31917,
+      "turns": 9,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 10,
+        "output": 4633,
+        "cacheRead": 90981,
+        "cacheWrite": 19800
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.11,
+      "ms": 23082,
+      "turns": 4,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 2854,
+        "cacheRead": 47235,
+        "cacheWrite": 17837
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.1,
+      "ms": 16608,
+      "turns": 5,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 1779,
+        "cacheRead": 39782,
+        "cacheWrite": 17667
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.15,
+      "ms": 39054,
+      "turns": 10,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 10,
+        "output": 4585,
+        "cacheRead": 92142,
+        "cacheWrite": 21354
+      }
+    },
+    {
+      "role": "developer",
+      "step": "rework",
+      "costUsd": 0.07,
+      "ms": 23512,
+      "turns": 7,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 10,
+        "output": 2459,
+        "cacheRead": 84236,
+        "cacheWrite": 6279
+      }
+    },
+    {
+      "role": "qa",
+      "step": "qa",
+      "costUsd": 0.06,
+      "ms": 15389,
+      "turns": 3,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1986,
+        "cacheRead": 33733,
+        "cacheWrite": 8437
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.08,
+      "ms": 20922,
+      "turns": 6,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 2507,
+        "cacheRead": 47400,
+        "cacheWrite": 10171
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.09,
+      "ms": 23768,
+      "turns": 6,
+      "effort": "high",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 2874,
+        "cacheRead": 53977,
+        "cacheWrite": 13090
+      }
+    },
+    {
+      "role": "lead",
+      "step": "debrief",
+      "costUsd": 0.07,
+      "ms": 12599,
+      "turns": 2,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 2,
+        "output": 1554,
+        "cacheRead": 1407,
+        "cacheWrite": 12231
+      }
+    }
+  ],
+  "mode": "feature"
+}

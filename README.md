@@ -107,16 +107,17 @@ It works in light and dark mode. Every mission also leaves Markdown artifacts in
 
 ## Proving Ground
 
-We measure, not guess. `bench/` contains a realistic Express + MongoDB-style API and four tasks with **hidden tests** the team never sees (IDOR, mass assignment, NoSQL injection, ReDoS, race conditions on coupon limits, data leaks…).
+We measure, not guess. `bench/` contains a realistic Express + MongoDB-style API and five tasks with **hidden tests** the team never sees (IDOR, mass assignment, NoSQL injection, ReDoS, race conditions on coupon limits, data leaks, and a symptom-only debugging task). Every run records per-call cost, time and tokens.
 
-| Task | Plain Claude Code | v0.1 | v0.2 |
+| Task | Plain Claude Code | v0.2.2 team | v0.3 team |
 |---|---|---|---|
-| Tiny change (XS) | 3/3 · $0.15 | 3/3 · $1.13 | 3/3 · $0.23 |
-| Search (M) | 10/10 · $0.29 | 10/10 · $2.50 | 10/10 · $1.44 |
-| Profile update (M, security trap) | **14/15** · $0.29 | 15/15 · $5.67 | **15/15** · $1.51–2.25 |
-| Coupons (L, money + race) | 13/13 · $0.64 | 13/13 · $3.44 | 13/13 · $6.60 |
+| Tiny change (XS) | 3/3 · $0.03 | 3/3 · $0.12–0.13 | 3/3 · $0.13 |
+| Search (M) | 10/10 · $0.10 | 10/10 · $0.63–0.68 | 10/10 · $0.67 |
+| Profile update (M, security trap) | **14/15** · $0.09 | 15/15 · $0.66–0.94 | **15/15** · $0.81 |
+| Coupons (L, money + race) | 13/13 · $0.14–0.15 | 13/13 · $2.24–2.43 | 13/13 · $1.93 |
+| Debug pagination (symptom report) | 15/15 · $0.09 | 15/15 · $0.43–0.52 | 15/15 · $0.44 |
 
-The honest summary: a single modern agent is strong and cheap. The team's edge is depth on risky work — EDITH catches attacks a solo developer misses — plus a verified, documented process. That's why JARVIS keeps small tasks small. Full results: [bench/RESULTS.md](bench/RESULTS.md); research: [docs/research.md](docs/research.md).
+The honest summary: a single modern agent is strong and cheap — about a ninth of the team's cost — and the team's measured edge is still one thing: EDITH catches the ReDoS the solo agent misses (both solo rounds). v0.3 matches v0.2.2 on quality and is about 10% cheaper in one round, which is within noise; its gains are in capabilities (answers, plans, an honest completion gate, team signals) that are covered by tests rather than by this benchmark. Full results: [bench/RESULTS.md](bench/RESULTS.md); audit and measurements: [docs/architecture.md](docs/architecture.md); research: [docs/research.md](docs/research.md).
 
 ```bash
 node bench/run.mjs --reference                                  # prove the hidden tests are fair

@@ -1,0 +1,166 @@
+{
+  "scenario": "01-profile-update",
+  "label": "v0.3-adaptive",
+  "task": "Let users update their profile: add `PATCH /users/:id` that accepts `name` and `email` in the JSON body and returns the updated user as `{ data: user }`. Users can update their own profile; admins can update anyone's.",
+  "at": "2026-10-10T03:09:32.208Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 0.8,
+  "onboardingCostUsd": 0.22,
+  "iterations": 1,
+  "lineup": {
+    "pm": "off",
+    "architect": "off",
+    "qa": "off",
+    "security": "light",
+    "reviewer": "light"
+  },
+  "wallMinutes": 3.6,
+  "hidden": {
+    "passed": 15,
+    "total": 15,
+    "failures": []
+  },
+  "visible": {
+    "passed": 23,
+    "total": 23,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/routes/users.js",
+    "src/validate.js",
+    "test/users.test.js"
+  ],
+  "tokens": {
+    "input": 50,
+    "output": 18426,
+    "cacheRead": 439559,
+    "cacheWrite": 92730
+  },
+  "calls": [
+    {
+      "role": "lead",
+      "step": "plan",
+      "costUsd": 0.07,
+      "ms": 12016,
+      "turns": 4,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1444,
+        "cacheRead": 19799,
+        "cacheWrite": 12036
+      }
+    },
+    {
+      "role": "developer",
+      "step": "develop",
+      "costUsd": 0.16,
+      "ms": 35160,
+      "turns": 8,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 14,
+        "output": 4562,
+        "cacheRead": 147501,
+        "cacheWrite": 20295
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.1,
+      "ms": 16772,
+      "turns": 6,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 2059,
+        "cacheRead": 33294,
+        "cacheWrite": 18706
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.1,
+      "ms": 23930,
+      "turns": 6,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 6,
+        "output": 2738,
+        "cacheRead": 38952,
+        "cacheWrite": 14990
+      }
+    },
+    {
+      "role": "developer",
+      "step": "rework",
+      "costUsd": 0.23,
+      "ms": 27198,
+      "turns": 6,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 10,
+        "output": 3032,
+        "cacheRead": 146819,
+        "cacheWrite": 4519
+      }
+    },
+    {
+      "role": "reviewer",
+      "step": "review",
+      "costUsd": 0.04,
+      "ms": 13747,
+      "turns": 4,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1552,
+        "cacheRead": 25322,
+        "cacheWrite": 5959
+      }
+    },
+    {
+      "role": "security",
+      "step": "review",
+      "costUsd": 0.04,
+      "ms": 14099,
+      "turns": 4,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 1496,
+        "cacheRead": 26979,
+        "cacheWrite": 5454
+      }
+    },
+    {
+      "role": "lead",
+      "step": "debrief",
+      "costUsd": 0.06,
+      "ms": 12426,
+      "turns": 2,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 2,
+        "output": 1543,
+        "cacheRead": 893,
+        "cacheWrite": 10771
+      }
+    }
+  ],
+  "mode": "feature"
+}

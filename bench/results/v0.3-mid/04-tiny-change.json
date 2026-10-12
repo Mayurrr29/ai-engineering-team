@@ -1,0 +1,75 @@
+{
+  "scenario": "04-tiny-change",
+  "label": "v0.3-adaptive",
+  "task": "Change the generic 404 message for unknown routes from \"Not found\" to \"Resource not found\".",
+  "at": "2026-10-10T03:10:59.018Z",
+  "exitCodes": {
+    "init": 0,
+    "build": 0
+  },
+  "status": "approved",
+  "costUsd": 0.13,
+  "onboardingCostUsd": 0.16,
+  "iterations": 0,
+  "lineup": {
+    "pm": "off",
+    "architect": "off",
+    "qa": "off",
+    "security": "off",
+    "reviewer": "off"
+  },
+  "wallMinutes": 1.6,
+  "hidden": {
+    "passed": 3,
+    "total": 3,
+    "failures": []
+  },
+  "visible": {
+    "passed": 15,
+    "total": 15,
+    "failures": []
+  },
+  "filesChanged": [
+    "src/errors.js",
+    "test/app.test.js"
+  ],
+  "tokens": {
+    "input": 16,
+    "output": 1975,
+    "cacheRead": 106901,
+    "cacheWrite": 21813
+  },
+  "calls": [
+    {
+      "role": "lead",
+      "step": "plan",
+      "costUsd": 0.06,
+      "ms": 7514,
+      "turns": 3,
+      "effort": "medium",
+      "ok": true,
+      "tokens": {
+        "input": 4,
+        "output": 789,
+        "cacheRead": 19501,
+        "cacheWrite": 10966
+      }
+    },
+    {
+      "role": "developer",
+      "step": "develop",
+      "costUsd": 0.07,
+      "ms": 14117,
+      "turns": 8,
+      "effort": "low",
+      "ok": true,
+      "tokens": {
+        "input": 12,
+        "output": 1186,
+        "cacheRead": 87400,
+        "cacheWrite": 10847
+      }
+    }
+  ],
+  "mode": "chore"
+}
